@@ -11,7 +11,8 @@ class Histogram(Elaboratable):
         self.mem = Array([Signal(unsigned(self.bits)) for _ in range(bins)])
         self.index_r = Signal(range(1, self.bins))
         self.index_w = Signal(range(1, self.bins))
-        self.data = Signal(unsigned(self.bits))
+        self.data_r = Signal(unsigned(self.bits))
+        self.data_w = Signal(unsigned(self.bits))
         self.increment = Signal()
         self.write = Signal()
         self.read = Signal()
@@ -19,7 +20,8 @@ class Histogram(Elaboratable):
         self.ports = (
                 self.index_r,
                 self.index_w,
-                self.data,
+                self.data_r,
+                self.data_w,
                 self.increment,
                 self.write,
                 self.read
@@ -32,11 +34,11 @@ class Histogram(Elaboratable):
         with m.If(self.increment == 1):
             m.d.sync += self.mem[self.index_w].eq(self.mem[self.index_w] + 1)
         with m.Elif(self.write == 1):
-            m.d.sync += self.mem[self.index_w].eq(self.data)
+            m.d.sync += self.mem[self.index_w].eq(self.data_w)
 
         # Reading
         with m.If(self.read == 1):
-            m.d.sync += self.data.eq(self.mem[self.index_r])
+            m.d.sync += self.data_r.eq(self.mem[self.index_r])
 
         return m
 
@@ -48,14 +50,14 @@ if __name__ == '__main__':
     def write(value, index):
         # set a bin at index to a value
         yield dut.index_w.eq(index)
-        yield dut.data.eq(value)
+        yield dut.data_w.eq(value)
         yield dut.write.eq(1)
         yield Tick()
         yield Settle()
 
         # reset write
         yield dut.write.eq(0)
-        yield dut.data.eq(0)
+        yield dut.data_w.eq(0)
         yield Tick()
         yield Settle()
 
@@ -87,20 +89,20 @@ if __name__ == '__main__':
         yield from write(24, 4)
         yield from read(4)
 
-        print("dut.data = {}".format((yield dut.data)))
-        assert (yield dut.data) == 24, "Didn't get 24!"
+        print("dut.data_w = {}".format((yield dut.data_r)))
+        assert (yield dut.data_r) == 24, "Didn't get 24!"
 
         yield from increment(4)
         yield from read(4)
 
-        print("dut.data = {}".format((yield dut.data)))
-        assert (yield dut.data) == 25, "Didn't get 25!"
+        print("dut.data = {}".format((yield dut.data_r)))
+        assert (yield dut.data_r) == 25, "Didn't get 25!"
 
         yield from increment(1)
         yield from read(1)
 
-        print("dut.data = {}".format((yield dut.data)))
-        assert (yield dut.data) == 1, "Didn't get 1!"
+        print("dut.data = {}".format((yield dut.data_r)))
+        assert (yield dut.data_r) == 1, "Didn't get 1!"
 
 
     sim.add_clock(1e-6)
