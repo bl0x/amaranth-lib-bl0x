@@ -9,14 +9,16 @@ class Histogram(Elaboratable):
         self.bins = bins
         self.bits = bits
         self.mem = Array([Signal(unsigned(self.bits)) for _ in range(bins)])
-        self.index = Signal(range(1, self.bins))
+        self.index_r = Signal(range(1, self.bins))
+        self.index_w = Signal(range(1, self.bins))
         self.data = Signal(unsigned(self.bits))
         self.increment = Signal()
         self.write = Signal()
         self.read = Signal()
 
         self.ports = (
-                self.index,
+                self.index_r,
+                self.index_w,
                 self.data,
                 self.increment,
                 self.write,
@@ -26,12 +28,15 @@ class Histogram(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
+        # Writing
         with m.If(self.increment == 1):
-            m.d.sync += self.mem[self.index].eq(self.mem[self.index] + 1)
-        with m.Elif(self.read == 1):
-            m.d.sync += self.data.eq(self.mem[self.index])
+            m.d.sync += self.mem[self.index_w].eq(self.mem[self.index_w] + 1)
         with m.Elif(self.write == 1):
-            m.d.sync += self.mem[self.index].eq(self.data)
+            m.d.sync += self.mem[self.index_w].eq(self.data)
+
+        # Reading
+        with m.If(self.read == 1):
+            m.d.sync += self.data.eq(self.mem[self.index_r])
 
         return m
 
@@ -42,7 +47,7 @@ if __name__ == '__main__':
 
     def write(value, index):
         # set a bin at index to a value
-        yield dut.index.eq(index)
+        yield dut.index_w.eq(index)
         yield dut.data.eq(value)
         yield dut.write.eq(1)
         yield Tick()
@@ -56,7 +61,7 @@ if __name__ == '__main__':
 
     def read(index):
         # read
-        yield dut.index.eq(index)
+        yield dut.index_r.eq(index)
         yield dut.read.eq(1)
         yield Tick()
         yield Settle()
@@ -68,7 +73,7 @@ if __name__ == '__main__':
 
     def increment(index):
         # increment
-        yield dut.index.eq(index)
+        yield dut.index_w.eq(index)
         yield dut.increment.eq(1)
         yield Tick()
         yield Settle()
