@@ -40,6 +40,8 @@ class SerialDecoder(Elaboratable):
         self.decoded_command = Signal(unsigned(4))
         self.decoded_arg = Signal(unsigned(8))
         self.ready = Signal()
+        self.write_prev = Signal()
+        self.write_rose = Signal()
 
         self.commands = {
                 "READ": {"char": 'R', "value": 1},
@@ -60,6 +62,12 @@ class SerialDecoder(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
+        m.d.sync += [
+                self.write_prev.eq(self.write),
+                ]
+
+        m.d.comb += self.write_rose.eq((self.write == 1) & (self.write_prev == 0))
+
         with m.FSM(reset="WAIT_COMMAND"):
             with m.State("RESET"):
                 m.d.sync += [
@@ -68,14 +76,16 @@ class SerialDecoder(Elaboratable):
                         self.arg_off.eq(0),
                         self.pos.eq(0),
                         self.arg_len.eq(0),
-                        self.ready.eq(0)
+                        self.decoded_arg.eq(0),
+                        self.decoded_command.eq(0)
                         ]
                 m.next = "WAIT_COMMAND"
             with m.State("WAIT_COMMAND"):
-                with m.If(self.write == 1):
+                with m.If(self.write_rose == 1):
                     m.d.sync += [
                             self.buffer[self.pos].eq(self.char),
                             self.pos.eq(self.pos + 1),
+                            self.ready.eq(0),
                             ]
                 with m.If((self.char == ord(self.separator))
                           | (self.char == 0x0d)):
@@ -87,7 +97,7 @@ class SerialDecoder(Elaboratable):
                 with m.Else():
                     m.next = "WAIT_COMMAND"
             with m.State("WAIT_ARG"):
-                with m.If(self.write == 1):
+                with m.If(self.write_rose == 1):
                     m.d.sync += [
                             self.buffer[self.pos].eq(self.char),
                             self.pos.eq(self.pos + 1),
@@ -172,16 +182,18 @@ if __name__ == '__main__':
 
     sim = Simulator(dut)
 
-    def write_char(char):
+    def write_char(char, speed_divider=1):
         # Write
         yield dut.char.eq(ord(char))
         yield dut.write.eq(1)
-        yield Tick()
-        yield Settle()
+        for i in range(speed_divider):
+            yield Tick()
+            yield Settle()
         # Reset write
         yield dut.write.eq(0)
-        yield Tick()
-        yield Settle()
+        for i in range(speed_divider):
+            yield Tick()
+            yield Settle()
 
     def pause():
         yield Tick()
@@ -205,10 +217,10 @@ if __name__ == '__main__':
         yield Tick()
         yield Settle()
 
-    def write(text):
+    def write(text, speed_divider=1):
         print("write = {}".format(text.strip()))
         for i in range(len(text)):
-            yield from write_char(text[i])
+            yield from write_char(text[i], speed_divider)
         while True:
             ready = yield dut.ready
             yield Tick()
@@ -216,11 +228,11 @@ if __name__ == '__main__':
             if ready == 1:
                 break
 
-    def test_command(cmd, arg=None):
+    def test_command(cmd, arg=None, speed_divider=1):
         argstr = ""
         if arg is not None:
             argstr = " " + str(arg)
-        yield from write("{}{}\r\n".format(cmd["char"], argstr))
+        yield from write("{}{}\r\n".format(cmd["char"], argstr), speed_divider)
 
         print("dut.command = {}".format((yield dut.command)))
         assert (yield dut.command) == cmd["value"], "Didn't get {} = R!".format(cmd["value"], cmd["char"])
@@ -230,10 +242,13 @@ if __name__ == '__main__':
 
 
     def proc():
-        for cmd in dut.commands:
-            yield from test_command(dut.commands[cmd])
-            yield from test_command(dut.commands[cmd], 7)
-            yield from test_command(dut.commands[cmd], 42)
+        for speed_divider in [1, 2, 20]:
+            print("Speed divider = {}".format(speed_divider))
+            for cmd in dut.commands:
+                print("cmd = {}".format(cmd))
+                yield from test_command(dut.commands[cmd], None, speed_divider)
+                yield from test_command(dut.commands[cmd], 7, speed_divider)
+                yield from test_command(dut.commands[cmd], 42, speed_divider)
 
 
         yield from clear()
