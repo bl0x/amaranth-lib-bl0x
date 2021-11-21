@@ -1,6 +1,8 @@
 from nmigen import *
 from nmigen.sim import *
 
+from bcd import BinToBcd
+
 import math
 
 # this encoder transfors sequences of bytes into integer representation
@@ -11,8 +13,6 @@ import math
 class SerialEncoder(Elaboratable):
     def __init__(self, bufsize=16):
         self.bufsize = bufsize
-        self.buffer = Array([Signal(unsigned(8)) for _ in range(self.bufsize)])
-        self.len = Signal(unsigned(8))
 
         self.data = Signal(unsigned(8))
         self.write = Signal()
@@ -33,14 +33,19 @@ class SerialEncoder(Elaboratable):
                 ]
 
     def elaborate(self, platform):
+        bcd = BinToBcd(bits=8)
+        buffer = Array([Signal(unsigned(8)) for _ in range(self.bufsize)])
+        size = Signal(unsigned(8))
+
         m = Module()
 
+        m.submodules += [
+                bcd
+                ]
+
         bytes_to_encode = Signal(unsigned(8))
-        byte = Signal(8)
         pos = Signal(8)
-        bcd = Array([Signal(unsigned(4)) for _ in range(3)])
-        bcd_len = Signal(4)
-        bcd_pos = Signal(4)
+        bcd_pos = Signal(unsigned(4))
 
         with m.FSM(reset="IDLE"):
 
@@ -48,14 +53,14 @@ class SerialEncoder(Elaboratable):
                 m.d.sync += self.rdy.eq(0)
                 with m.If(self.trg == 1):
                     m.d.sync += [
-                            bytes_to_encode.eq(self.len),
+                            bytes_to_encode.eq(size),
                             pos.eq(0)
                             ]
                     m.next = "ENCODE"
                 with m.If(self.write == 1):
                     m.d.sync += [
-                            self.len.eq(self.len + 1),
-                            self.buffer[self.len].eq(self.data)
+                            size.eq(size + 1),
+                            buffer[size].eq(self.data)
                             ]
                     m.next = "IDLE"
 
@@ -67,26 +72,21 @@ class SerialEncoder(Elaboratable):
 
             with m.State("LOAD"):
                 m.d.sync += [
-                        byte.eq(self.buffer[pos]),
-                        bcd_len.eq(0),
+                        bcd.bin.eq(buffer[pos]),
+                        bcd.trg.eq(1),
                         bcd_pos.eq(0)
                         ]
                 m.next = "CONVERT_BCD"
 
             with m.State("CONVERT_BCD"):
-                with m.If(byte > 0):
-                    m.d.sync += [
-                            bcd[bcd_len].eq(byte % 10),
-                            bcd_len.eq(bcd_len + 1),
-                            byte.eq(byte // 10)
-                            ]
-                with m.Else():
+                m.d.sync += bcd.trg.eq(0)
+                with m.If(bcd.rdy == 1):
                     m.next = "SEND_BCD"
 
             with m.State("SEND_BCD"):
-                with m.If(bcd_pos < bcd_len):
+                with m.If(bcd_pos < 3):
                     m.d.sync += [
-                            self.tx.eq(bcd[bcd_len - bcd_pos - 1]),
+                            self.tx.eq(bcd.bcd.word_select(2 - bcd_pos, 4)),
                             self.tx_trg.eq(1),
                             bcd_pos.eq(bcd_pos + 1)
                             ]
@@ -146,7 +146,7 @@ class SerialEncoder(Elaboratable):
             with m.State("DONE"):
                 m.d.sync += [
                         self.rdy.eq(1),
-                        self.len.eq(0)
+                        size.eq(0)
                         ]
                 m.next = "IDLE"
 
@@ -161,32 +161,8 @@ if __name__ == '__main__':
         yield Tick()
         yield Settle()
 
-    def write(char):
-        yield dut.data.eq(char)
-        yield dut.write.eq(1)
-        yield from tick()
-        yield dut.write.eq(0)
-        yield from tick()
-
-    def check_init():
-        yield from tick()
-        assert(yield dut.len == 0)
-        assert(yield dut.rdy == 0)
-
-    def check_empty():
-        yield from transmit(2)
-
-    def transmit(n):
-        yield dut.trg.eq(1)
-        yield from tick()
-        yield dut.trg.eq(0)
-        yield from tick()
-        for i in range(n):
-            yield from wait_convert()
-            yield from mimic_tx_rdy()
-
     def wait_convert():
-        for i in range(5):
+        for i in range(10 * 4):
             yield from tick()
 
     def mimic_tx_rdy():
@@ -197,11 +173,36 @@ if __name__ == '__main__':
         yield dut.tx_rdy.eq(0)
         yield from tick()
 
+    def transmit(n):
+        yield dut.trg.eq(1)
+        yield from tick()
+        yield dut.trg.eq(0)
+        yield from tick()
+        for i in range(n):
+            yield from wait_convert()
+            yield from mimic_tx_rdy()
+
+    def write(char):
+        yield dut.data.eq(char)
+        yield dut.write.eq(1)
+        yield from tick()
+        yield dut.write.eq(0)
+        yield from tick()
+
+    def check_init():
+        yield from tick()
+        assert(yield dut.rdy == 0)
+
+    def check_empty():
+        yield from transmit(2)
+
     def check_write():
         yield from write(0x4)
         yield from write(0x0a)
         yield from write(0xfe)
-        yield from transmit(11)
+        yield from transmit(14)
+        for i in range(200):
+            yield from tick()
 
     def proc():
         yield from check_init()
