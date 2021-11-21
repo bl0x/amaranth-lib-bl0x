@@ -28,49 +28,37 @@ class BinToBcd(Elaboratable):
         m = Module()
 
         iteration = Signal(unsigned(4))
-        digit = Signal(unsigned(4))
 
         with m.FSM(reset="IDLE"):
             with m.State("IDLE"):
+                m.d.sync += self.rdy.eq(0)
                 with m.If(self.trg == 1):
                     m.d.sync += [
                             self.mem[0:self.bin_bits].eq(self.bin),
                             self.mem[self.bin_bits:].eq(0),
                             iteration.eq(self.bin_bits),
-                            self.rdy.eq(0),
-                            digit.eq(0)
                             ]
                     m.next = "ADD"
 
             with m.State("ADD"):
-                mem = self.mem.bit_select(self.bin_bits + digit * 4, 4)
-                m.d.sync += [
-                        digit.eq(digit + 1)
-                        ]
-                with m.If(mem > 4):
-                    m.d.sync += [
-                            mem.eq(mem + 3)
-                            ]
-
-                with m.If(digit == self.digits):
-                    m.next = "SHIFT"
+                for i in range(self.digits):
+                    mem = self.mem.bit_select(self.bin_bits + i * 4, 4)
+                    with m.If(mem > 4):
+                        m.d.sync += mem.eq(mem + 3)
+                m.next = "SHIFT"
 
             with m.State("SHIFT"):
                 m.d.sync += [
                         self.mem.eq(self.mem.shift_left(1)),
-                        iteration.eq(iteration - 1),
-                        digit.eq(0)
+                        iteration.eq(iteration - 1)
                         ]
                 with m.If(iteration == 1):
-                    m.next = "DONE"
+                    m.d.sync += [
+                            self.rdy.eq(1)
+                            ]
+                    m.next = "IDLE"
                 with m.Else():
                     m.next = "ADD"
-
-            with m.State("DONE"):
-                m.d.sync += [
-                        self.rdy.eq(1)
-                        ]
-                m.next = "IDLE"
 
         m.d.comb += self.bcd.eq(self.mem[self.bin_bits:])
 

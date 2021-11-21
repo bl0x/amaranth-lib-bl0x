@@ -46,6 +46,7 @@ class SerialEncoder(Elaboratable):
         bytes_to_encode = Signal(unsigned(8))
         pos = Signal(8)
         bcd_pos = Signal(unsigned(4))
+        seen_nonzero = Signal()
 
         with m.FSM(reset="IDLE"):
 
@@ -74,7 +75,8 @@ class SerialEncoder(Elaboratable):
                 m.d.sync += [
                         bcd.bin.eq(buffer[pos]),
                         bcd.trg.eq(1),
-                        bcd_pos.eq(0)
+                        bcd_pos.eq(0),
+                        seen_nonzero.eq(0)
                         ]
                 m.next = "CONVERT_BCD"
 
@@ -85,12 +87,17 @@ class SerialEncoder(Elaboratable):
 
             with m.State("SEND_BCD"):
                 with m.If(bcd_pos < 3):
-                    m.d.sync += [
-                            self.tx.eq(bcd.bcd.word_select(2 - bcd_pos, 4)),
-                            self.tx_trg.eq(1),
-                            bcd_pos.eq(bcd_pos + 1)
-                            ]
-                    m.next = "WAIT_TX"
+                    digit = bcd.bcd.word_select(2 - bcd_pos, 4)
+                    m.d.sync += bcd_pos.eq(bcd_pos + 1)
+                    with m.If((digit != 0) | (seen_nonzero == 1)):
+                        m.d.sync += [
+                                seen_nonzero.eq(1),
+                                self.tx.eq(digit),
+                                self.tx_trg.eq(1),
+                                ]
+                        m.next = "WAIT_TX"
+                    with m.Else():
+                        m.next = "SEND_BCD"
                 with m.Else():
                     m.next = "SEND_SPACER"
 
