@@ -78,10 +78,13 @@ class SerialEncoder(Elaboratable):
                         bcd_pos.eq(0),
                         seen_nonzero.eq(0)
                         ]
+                m.next = "BCD_TRG_OFF"
+
+            with m.State("BCD_TRG_OFF"):
+                m.d.sync += bcd.trg.eq(0)
                 m.next = "CONVERT_BCD"
 
             with m.State("CONVERT_BCD"):
-                m.d.sync += bcd.trg.eq(0)
                 with m.If(bcd.rdy == 1):
                     m.next = "SEND_BCD"
 
@@ -92,7 +95,7 @@ class SerialEncoder(Elaboratable):
                     with m.If((digit != 0) | (seen_nonzero == 1)):
                         m.d.sync += [
                                 seen_nonzero.eq(1),
-                                self.tx.eq(digit),
+                                self.tx.eq(digit + ord('0')),
                                 self.tx_trg.eq(1),
                                 ]
                         m.next = "WAIT_TX"
@@ -103,6 +106,9 @@ class SerialEncoder(Elaboratable):
 
             with m.State("WAIT_TX"):
                 m.d.sync += self.tx_trg.eq(0)
+                m.next = "WAIT_TX2"
+
+            with m.State("WAIT_TX2"):
                 with m.If(self.tx_rdy == 1):
                     m.next = "SEND_BCD"
 
@@ -115,6 +121,9 @@ class SerialEncoder(Elaboratable):
 
             with m.State("SEND_SPACER2"):
                 m.d.sync += self.tx_trg.eq(0)
+                m.next = "SEND_SPACER3"
+
+            with m.State("SEND_SPACER3"):
                 with m.If(self.tx_rdy == 1):
                     m.next = "ADVANCE"
 
@@ -135,18 +144,24 @@ class SerialEncoder(Elaboratable):
 
             with m.State("SEND_TERMINATOR2"):
                 m.d.sync += self.tx_trg.eq(0)
-                with m.If(self.tx_rdy == 1):
-                    m.next = "SEND_TERMINATOR3"
+                m.next = "SEND_TERMINATOR3"
 
             with m.State("SEND_TERMINATOR3"):
+                with m.If(self.tx_rdy == 1):
+                    m.next = "SEND_TERMINATOR4"
+
+            with m.State("SEND_TERMINATOR4"):
                 m.d.sync += [
                         self.tx.eq(ord('\n')),
                         self.tx_trg.eq(1)
                         ]
-                m.next = "SEND_TERMINATOR4"
+                m.next = "SEND_TERMINATOR5"
 
-            with m.State("SEND_TERMINATOR4"):
+            with m.State("SEND_TERMINATOR5"):
                 m.d.sync += self.tx_trg.eq(0)
+                m.next = "SEND_TERMINATOR6"
+
+            with m.State("SEND_TERMINATOR6"):
                 with m.If(self.tx_rdy == 1):
                     m.next = "DONE"
 
@@ -164,27 +179,23 @@ if __name__ == '__main__':
 
     sim = Simulator(dut)
 
-    def tick():
-        yield Tick()
-        yield Settle()
-
     def wait_convert():
         for i in range(10 * 4):
-            yield from tick()
+            yield
 
     def mimic_tx_rdy():
         for i in range(10):
-            yield from tick()
+            yield
         yield dut.tx_rdy.eq(1)
-        yield from tick()
+        yield
         yield dut.tx_rdy.eq(0)
-        yield from tick()
+        yield
 
     def transmit(n):
         yield dut.trg.eq(1)
-        yield from tick()
+        yield
         yield dut.trg.eq(0)
-        yield from tick()
+        yield
         for i in range(n):
             yield from wait_convert()
             yield from mimic_tx_rdy()
@@ -192,12 +203,12 @@ if __name__ == '__main__':
     def write(char):
         yield dut.data.eq(char)
         yield dut.write.eq(1)
-        yield from tick()
+        yield
         yield dut.write.eq(0)
-        yield from tick()
+        yield
 
     def check_init():
-        yield from tick()
+        yield
         assert(yield dut.rdy == 0)
 
     def check_empty():
@@ -209,7 +220,7 @@ if __name__ == '__main__':
         yield from write(0xfe)
         yield from transmit(14)
         for i in range(200):
-            yield from tick()
+            yield
 
     def proc():
         yield from check_init()

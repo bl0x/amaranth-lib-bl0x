@@ -52,38 +52,32 @@ if __name__ == '__main__':
         yield dut.index_w.eq(index)
         yield dut.data_w.eq(value)
         yield dut.write.eq(1)
-        yield Tick()
-        yield Settle()
+        yield
 
         # reset write
         yield dut.write.eq(0)
         yield dut.data_w.eq(0)
-        yield Tick()
-        yield Settle()
+        yield
 
     def read(index):
         # read
         yield dut.index_r.eq(index)
         yield dut.read.eq(1)
-        yield Tick()
-        yield Settle()
+        yield
 
         # reset read
         yield dut.read.eq(0)
-        yield Tick()
-        yield Settle()
+        yield
 
     def increment(index):
         # increment
         yield dut.index_w.eq(index)
         yield dut.increment.eq(1)
-        yield Tick()
-        yield Settle()
+        yield
 
         # reset increment
         yield dut.increment.eq(0)
-        yield Tick()
-        yield Settle()
+        yield
 
     def proc():
         yield from write(24, 4)
