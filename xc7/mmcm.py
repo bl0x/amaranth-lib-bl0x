@@ -65,6 +65,7 @@ class MMCME2(Elaboratable):
             for d in range(*self.clkout_divide_range):
                 f = vco_freq / d
                 if f == freq:
+                    print(f"d = {d}")
                     config[f"clkout{n}_freq"] = freq
                     config[f"clkout{n}_divide"] = d
                     config[f"clkout{n}_phase"] = phase
@@ -101,17 +102,17 @@ class MMCME2(Elaboratable):
                 div = div + "_F"
 
             params[f"o_CLKOUT{n}"] = clk
-            params[div] = self.config[f"clkout{n}_divide"],
+            params[div] = self.config[f"clkout{n}_divide"]
             params[f"p_CLKOUT{n}_PHASE"] = self.config[f"clkout{n}_phase"]
-            #self.ports.append(clk)
+            self.ports.append(clk)
 
         print(f"ports = {self.ports}")
 
-        #self.m.submodules += Instance("MMCME2_ADV", **params)
+        self.m.submodules += Instance("MMCME2_ADV", **params)
 
         return self.m
 
 if __name__ == '__main__':
     mmcme2 = MMCME2(12e6, 100e6)
-    mmcme2.create_clkout("clk192", 192e6, 0)
+    mmcme2.create_clkout("test192", 192e6, 0)
     main(mmcme2, ports=mmcme2.ports)
