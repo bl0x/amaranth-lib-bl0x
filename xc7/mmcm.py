@@ -115,4 +115,5 @@ class MMCME2(Elaboratable):
 if __name__ == '__main__':
     mmcme2 = MMCME2(12e6, 100e6)
     mmcme2.create_clkout("test192", 192e6, 0)
+    mmcme2.create_clkout("test192_90", 192e6, 90)
     main(mmcme2, ports=mmcme2.ports)
