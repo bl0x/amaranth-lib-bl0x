@@ -11,7 +11,7 @@ from nmigen.cli import main
 class MMCME2(Elaboratable):
     clkout0_divide_range = (1, (128 + 1/8), 1/8)
     clkout_divide_range = (1, 128+1)
-    #clkfbout_mult_range = (2, 64+1)
+    clkfbout_mult_range = (2, 64+1)
     divclk_divide_range = (1, 106+1)
     clkin_range = (10e6, 800e6)
     vco_range = (600e6, 1200e6)
@@ -55,27 +55,34 @@ class MMCME2(Elaboratable):
         config = {}
 
         # fixed for now
-        clkfbout_mult = 32
         divclk_divide = 1
-        config["clkfbout_mult"] = clkfbout_mult
         config["divclk_divide"] = divclk_divide
 
-        vco_freq = self.freq_in * clkfbout_mult / divclk_divide
+        m = 0
+        d = 0
 
-        for n, (_, _, freq, phase) in enumerate(self.outputs):
-            valid = False
-            for d in range(*self.clkout_divide_range):
-                f = vco_freq / d
-                if f == freq:
-                    print(f"d = {d}")
-                    config[f"clkout{n}_freq"] = freq
-                    config[f"clkout{n}_divide"] = d
-                    config[f"clkout{n}_phase"] = phase
-                    valid = True
-                    break
+        for m in range(*self.clkfbout_mult_range):
+            all_valid = True
+            vco_freq = self.freq_in * m / divclk_divide
+            for n, (_, _, freq, phase) in enumerate(self.outputs):
+                valid = False
+                for d in range(*self.clkout_divide_range):
+                    f = vco_freq / d
+                    if f == freq:
+                        config[f"clkout{n}_freq"] = freq
+                        config[f"clkout{n}_divide"] = d
+                        config[f"clkout{n}_phase"] = phase
+                        valid = True
+                        break
+                if not valid:
+                    all_valid = False
+            if all_valid:
+                break
 
-            assert(valid), f"No valid parameters for frequency {freq}"
+        assert(all_valid), f"No valid parameters for frequency {freq}"
 
+        config["clkfbout_mult"] = m
+        print(f"m = {m} d = {d}")
         print(config)
 
         return config
