@@ -109,7 +109,6 @@ class MMCME2(Elaboratable):
             params[f"o_CLKOUT{n}"] = clk_in
             params[div] = self.config[f"clkout{n}_divide"]
             params[f"p_CLKOUT{n}_PHASE"] = self.config[f"clkout{n}_phase"]
-            # self.ports.append(clk_out)
 
         print(f"ports = {self.ports}")
 
