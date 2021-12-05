@@ -16,7 +16,7 @@ class MMCME2(Elaboratable):
     clkin_range = (10e6, 800e6)
     vco_range = (600e6, 1200e6)
 
-    def __init__(self, freq_in, freq_out, domain_name='sync'):
+    def __init__(self, freq_in):
         self.freq_in = freq_in
 
         self.clkin = Signal()
@@ -36,18 +36,20 @@ class MMCME2(Elaboratable):
         self.m = Module()
 
     def create_clkout(self, domain_name, frequency, phase=0):
-        clkout = Signal()
-        clkout_buf = ClockSignal(domain_name)
+        clkbuf_in = Signal(name=f"clkbuf_in_{len(self.outputs)}")
+        clkbuf_out = Signal(name=f"clkbuf_out_{len(self.outputs)}")
 
-        self.outputs.append((clkout, frequency, phase))
+        self.outputs.append((clkbuf_in, clkbuf_out, frequency, phase))
 
         self.m.submodules += Instance("BUFG",
-                i_I=clkout,
-                o_O=clkout_buf
+                i_I=clkbuf_in,
+                o_O=clkbuf_out
                 )
 
         self.m.domains += ClockDomain(domain_name)
-        self.m.d.comb += clkout.eq(clkout_buf)
+        self.m.d.comb += ClockSignal(domain_name).eq(clkbuf_out)
+
+        print(f"New clock domain '{domain_name}' with frequency {frequency}")
 
     def make_config(self):
         config = {}
@@ -60,8 +62,8 @@ class MMCME2(Elaboratable):
 
         vco_freq = self.freq_in * clkfbout_mult / divclk_divide
 
-        valid = False
-        for n, (clk, freq, phase) in enumerate(self.outputs):
+        for n, (_, _, freq, phase) in enumerate(self.outputs):
+            valid = False
             for d in range(*self.clkout_divide_range):
                 f = vco_freq / d
                 if f == freq:
@@ -73,6 +75,8 @@ class MMCME2(Elaboratable):
                     break
 
             assert(valid), f"No valid parameters for frequency {freq}"
+
+        print(config)
 
         return config
 
@@ -92,19 +96,20 @@ class MMCME2(Elaboratable):
             p_BANDWIDTH="OPTIMIZED",
             p_CLKFBOUT_MULT_F=self.config["clkfbout_mult"],
             p_CLKIN1_PERIOD=1e9/self.freq_in,
+            p_COMPENSATION="EXTERNAL",
             p_DIVCLK_DIVIDE=self.config["divclk_divide"],
             p_REF_JITTER1=0.01
             )
 
-        for n, (clk, freq, phase) in enumerate(self.outputs):
+        for n, (clk_in, clk_out, freq, phase) in enumerate(self.outputs):
             div = f"p_CLKOUT{n}_DIVIDE"
             if n == 0:
                 div = div + "_F"
 
-            params[f"o_CLKOUT{n}"] = clk
+            params[f"o_CLKOUT{n}"] = clk_in
             params[div] = self.config[f"clkout{n}_divide"]
             params[f"p_CLKOUT{n}_PHASE"] = self.config[f"clkout{n}_phase"]
-            self.ports.append(clk)
+            # self.ports.append(clk_out)
 
         print(f"ports = {self.ports}")
 
@@ -113,7 +118,7 @@ class MMCME2(Elaboratable):
         return self.m
 
 if __name__ == '__main__':
-    mmcme2 = MMCME2(12e6, 100e6)
+    mmcme2 = MMCME2(12e6)
     mmcme2.create_clkout("test192", 192e6, 0)
     mmcme2.create_clkout("test192_90", 192e6, 90)
     main(mmcme2, ports=mmcme2.ports)

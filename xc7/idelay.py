@@ -3,14 +3,15 @@ from nmigen.cli import main
 
 import math
 
+# This is a fixed IDELAY
+# Requires in addition an associated IDELAYCTRL module
+
 class IDELAYE2(Elaboratable):
     def __init__(self, delay_s, reference_frequency_hz):
-        self.c = Signal()
         self.idatain = Signal()
         self.dataout = Signal()
 
         self.ports = [
-                self.c,
                 self.idatain,
                 self.dataout
                 ]
@@ -42,9 +43,17 @@ class IDELAYE2(Elaboratable):
                 p_PIPE_SEL="FALSE",
                 p_REFCLK_FREQUENCY=self.reference_frequency_hz/1e6,
                 p_SIGNAL_PATTERN="DATA",
-                i_c = self.c,
-                i_idatain = self.idatain,
-                o_dataout = self.dataout
+                i_C = ClockSignal(),
+                i_CE = 0,
+                i_CINVCTRL = 0,
+                i_CNTVALUEIN = 0,
+                i_DATAIN = 0,
+                i_IDATAIN = self.idatain,
+                i_INC = 0,
+                i_LD = 0,
+                i_LDPIPEEN = 0,
+                #o_CNTVALUEOUT = 0,
+                o_DATAOUT = self.dataout
                 )
 
         m = Module()
