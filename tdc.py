@@ -1,6 +1,6 @@
-from nmigen import *
-from nmigen.sim import *
-from nmigen.lib.fifo import *
+from amaranth import *
+from amaranth.sim import *
+from amaranth.lib.fifo import *
 
 from generic.oversampling_input import OversamplingInput
 

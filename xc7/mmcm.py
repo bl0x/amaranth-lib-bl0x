@@ -1,12 +1,12 @@
-from nmigen import *
-from nmigen.cli import main
+from amaranth import *
+from amaranth.cli import main
 
 # supports a subset of the Xilinx Series 7 MMCME2_ADV features
 # inspired by / taken from:
 # https://github.com/kbob/nmigen-examples/blob/master/nmigen_lib/pll.py
 # and
 # https://github.com/enjoy-digital/litex/blob/master/litex/soc/cores/clock/xilinx_s7.py
-# check also this: https://41j.com/blog/2020/01/ice40hx8k-ad9225-adc-with-nmigen/
+# check also this: https://41j.com/blog/2020/01/ice40hx8k-ad9225-adc-with-amaranth/
 
 class MMCME2(Elaboratable):
     clkout0_divide_range = (1, (128 + 1/8), 1/8)

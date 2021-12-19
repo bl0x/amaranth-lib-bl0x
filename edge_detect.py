@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.sim import *
+from amaranth import *
+from amaranth.sim import *
 
 class EdgeDetector(Elaboratable):
     def __init__(self):

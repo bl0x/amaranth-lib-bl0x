@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.sim import *
+from amaranth import *
+from amaranth.sim import *
 
 # this decoder can handle byte sequences delimited by '\r\n' = '\xd\xa'.
 # bytes are written to 'char' and shifted in with a pulse on 'write'.

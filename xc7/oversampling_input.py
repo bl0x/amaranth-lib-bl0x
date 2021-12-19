@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.cli import main
+from amaranth import *
+from amaranth.cli import main
 
 #from xc7.idelay import IDELAYE2
 #from xc7.idelayctrl import IDELAYCTRL

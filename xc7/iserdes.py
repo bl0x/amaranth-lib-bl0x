@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.cli import main
+from amaranth import *
+from amaranth.cli import main
 
 class ISERDESE2(Elaboratable):
     def __init__(self, mode):
@@ -72,7 +72,7 @@ class ISERDESE2(Elaboratable):
                 i_CLKDIV=0,
                 #i_CLKDIVP=0,
                 i_D=self.d,
-                i_DDLY=0,
+                i_DDLY=self.ddly,
                 #i_DYNCLKDIVPSEL=0, # why is this in arch.timing.xml?
                 #i_DYNCLKDIVSEL=0,
                 #i_DYNCLKSEL=0,

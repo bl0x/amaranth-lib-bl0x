@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.sim import *
+from amaranth import *
+from amaranth.sim import *
 import math
 
 # double dabble algorithm

@@ -1,4 +1,4 @@
-from nmigen.back import verilog
+from amaranth.back import verilog
 from xc7.mmcm import MMCME2
 
 top = MMCME2(12e6, 100e6)
