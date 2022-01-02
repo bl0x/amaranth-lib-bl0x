@@ -4,12 +4,19 @@ from amaranth.lib.fifo import *
 
 from generic.oversampling_input import OversamplingInput
 
+# output format:
+# | falling | rising | time | sample |
+# |---------|--------|------|--------|
+# |    37   |   36   | 35 4 | 3    0 |
+
 class Tdc(Elaboratable):
     def __init__(self):
+        # in
         self.clk_0 = Signal()
         self.clk_90 = Signal()
         self.input = Signal()
         self.time = Signal(32)
+        # out
         self.output = Signal(38)
         self.rdy = Signal()
 
