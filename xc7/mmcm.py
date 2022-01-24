@@ -64,6 +64,8 @@ class MMCME2(Elaboratable):
         for m in range(*self.clkfbout_mult_range):
             all_valid = True
             vco_freq = self.freq_in * m / divclk_divide
+            if vco_freq > self.vco_range[1] or vco_freq < self.vco_range[0]:
+                continue
             for n, (_, _, freq, phase) in enumerate(self.outputs):
                 valid = False
                 for d in range(*self.clkout_divide_range):
@@ -103,7 +105,7 @@ class MMCME2(Elaboratable):
             p_BANDWIDTH="OPTIMIZED",
             p_CLKFBOUT_MULT_F=self.config["clkfbout_mult"],
             p_CLKIN1_PERIOD=1e9/self.freq_in,
-            p_COMPENSATION="EXTERNAL",
+            p_COMPENSATION="ZHOLD",
             p_DIVCLK_DIVIDE=self.config["divclk_divide"],
             p_REF_JITTER1=0.01
             )
@@ -116,6 +118,7 @@ class MMCME2(Elaboratable):
             params[f"o_CLKOUT{n}"] = clk_in
             params[div] = self.config[f"clkout{n}_divide"]
             params[f"p_CLKOUT{n}_PHASE"] = self.config[f"clkout{n}_phase"]
+            params[f"p_CLKOUT{n}_DUTY_CYCLE"] = 0.5
 
         print(f"ports = {self.ports}")
 
