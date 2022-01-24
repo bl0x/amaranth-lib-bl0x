@@ -7,7 +7,7 @@ class ISERDESE2(Elaboratable):
         # input signal (without IDELAY)
         self.d = Signal()
 
-        # input signal (form IDELAY)
+        # input signal (from IDELAY)
         self.ddly = Signal()
 
         # driving clocks
@@ -54,11 +54,10 @@ class ISERDESE2(Elaboratable):
                 p_INIT_Q2=0,
                 p_INIT_Q3=0,
                 p_INIT_Q4=0,
-                p_INTERFACE_TYPE="OVERSAMPLE", # oversample supported?
+                p_INTERFACE_TYPE="OVERSAMPLE",
                 p_IOBDELAY="NONE",
                 #p_IOBDELAY="IFD",
-                p_NUM_CE="2",
-                #p_OFB_USED="FALSE",
+                p_NUM_CE=2,
                 p_SERDES_MODE="MASTER",
                 p_SRVAL_Q1=0,
                 p_SRVAL_Q2=0,
@@ -70,20 +69,11 @@ class ISERDESE2(Elaboratable):
                 i_CLK=self.clk,
                 i_CLKB=self.clkb,
                 i_CLKDIV=0,
-                #i_CLKDIVP=0,
                 i_D=self.d,
-                i_DDLY=self.ddly,
-                #i_DYNCLKDIVPSEL=0, # why is this in arch.timing.xml?
-                #i_DYNCLKDIVSEL=0,
-                #i_DYNCLKSEL=0,
-                #i_OCLK=self.oclk,
-                #i_OCLKB=self.oclkb,
-                #i_OFB=0,
+                i_DDLY=0,
+                i_OCLK=self.oclk,
+                i_OCLKB=self.oclkb,
                 i_RST=self.rst,
-                #i_SHIFTIN1=0,
-                #i_SHIFTIN2=0,
-                #i_TFB=0, # why is this in arch def? arch.timing.xml
-                #o_O=self.o,
                 o_Q1=self.s[0],
                 o_Q2=self.s[2],
                 o_Q3=self.s[1],
@@ -92,8 +82,6 @@ class ISERDESE2(Elaboratable):
                 o_Q6=self.q[5],
                 o_Q7=self.q[6],
                 o_Q8=self.q[7],
-                #o_SHIFTOUT1=self.shiftout[0],
-                #o_SHIFTOUT2=self.shiftout[1]
                 )
 
     def elaborate(self, platform):
