@@ -98,7 +98,7 @@ class TdcToHit(Elaboratable):
                 self.output.eq(Cat(diff2, time))
                 ]
 
-        m.submodules += s2v
+        m.submodules.s2v = s2v
 
         return m
 

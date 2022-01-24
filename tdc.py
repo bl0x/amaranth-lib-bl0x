@@ -20,60 +20,55 @@ class Tdc(Elaboratable):
         self.output = Signal(38)
         self.rdy = Signal()
 
-    def elaborate(self, platform):
+        # internal
+        self.sample = Signal(4)
+        self.falling = Signal()
+        self.rising = Signal()
+        self.stable_on = Signal()
+        self.stable_off = Signal()
+        self.prev_last = Signal()
 
-        sample = Signal(4)
-        falling = Signal()
-        rising = Signal()
-        stable_on = Signal()
-        stable_off = Signal()
-        prev_last = Signal()
-
-        os_in = OversamplingInput()
-
-        m = Module()
-
-        m.domains += [
-                ClockDomain("fast")
-                ]
-
-        m.d.comb += [
-                ClockSignal("fast").eq(self.clk_0)
-                ]
-
-        m.d.comb += [
+    def connect_to_oversampling_input(self, os_in):
+        return [
                 os_in.clk_0.eq(self.clk_0),
                 os_in.clk_90.eq(self.clk_90),
                 os_in.input.eq(self.input),
-                sample.eq(os_in.data4),
-                stable_on.eq(os_in.data4 == 15),
-                stable_off.eq(os_in.data4 == 0),
-                falling.eq(((prev_last == 1) & (os_in.data4[0] == 0))
+                self.sample.eq(os_in.data4),
+                self.stable_on.eq(os_in.data4 == 15),
+                self.stable_off.eq(os_in.data4 == 0),
+                self.falling.eq(((self.prev_last == 1) & (os_in.data4[0] == 0))
                     | (os_in.data4[2:4] == C(1, 2))
                     | (os_in.data4[1:3] == C(1, 2))
                     | (os_in.data4[0:2] == C(1, 2))),
-                rising.eq(((prev_last == 0) & (os_in.data4[0] == 1))
+                self.rising.eq(((self.prev_last == 0) & (os_in.data4[0] == 1))
                     | (os_in.data4[2:4] == C(2, 2))
                     | (os_in.data4[1:3] == C(2, 2))
                     | (os_in.data4[0:2] == C(2, 2)))
                 ]
 
-        with m.If((falling == 1) | (rising == 1)):
+    def elaborate(self, platform):
+
+        os_in = OversamplingInput()
+
+        m = Module()
+
+        m.domains += ClockDomain("fast")
+        m.d.comb += ClockSignal("fast").eq(self.clk_0)
+
+        m.d.comb += self.connect_to_oversampling_input(os_in)
+
+        with m.If((self.falling == 1) | (self.rising == 1)):
             # falling edge
-            m.d.fast += [
-                self.output.eq(Cat(Cat(Cat(sample, self.time), rising), falling))
-                ]
+            m.d.fast += self.output.eq(Cat(Cat(Cat(self.sample, self.time),
+                self.rising), self.falling))
+
         with m.Else():
             # No change
-            m.d.fast += [
-                self.output.eq(C(0, unsigned(37)))
-                ]
+            m.d.fast += self.output.eq(C(0, unsigned(37)))
 
-        m.d.fast += [
-                prev_last.eq(sample[3])
-                ]
+        m.d.fast += self.prev_last.eq(self.sample[3])
 
-        m.submodules += os_in
+        m.submodules.os_in = os_in
         return m
 
 if __name__ == "__main__":
