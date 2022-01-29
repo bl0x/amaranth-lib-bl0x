@@ -2,9 +2,9 @@ from amaranth import *
 from amaranth.sim import *
 
 from tdc import Tdc
+from counter import Counter
 
 # Transforms 38-bit output from a Tdc into hit data of the form:
-# Transforms 39-bit output from a Tdc into hit data of the form:
 #
 # | Timestamp | Length of pulse |
 # |-----------|-----------------|
@@ -48,9 +48,18 @@ class TdcToHit(Elaboratable):
         # out
         self.output = Signal(32)
         self.rdy = Signal()
+        self.counter_rise = Signal(16)
+        self.counter_fall = Signal(16)
+
+    def is_rising(self):
+        return self.input[36] == 1
+
+    def is_falling(self):
+        return self.input[37] == 1
 
     def elaborate(self, platform):
 
+        prev = Signal(32)
         start = Signal(36)
         fine_start = Signal(2)
         fine_end = Signal(2)
@@ -58,40 +67,66 @@ class TdcToHit(Elaboratable):
         time = Signal(16)
         diff = Signal(16)
         diff2 = Signal(16)
+        new_signal = Signal()
 
         s2v = SampleToVal()
+        count_rise = Counter()
+        count_fall = Counter()
 
         m = Module()
 
-        with m.If(self.input[37] == 1):
+        m.d.comb += [
+                count_rise.input.eq(self.input[36]),
+                count_fall.input.eq(self.input[37]),
+                self.counter_rise.eq(count_rise.count),
+                self.counter_fall.eq(count_fall.count),
+                ]
+
+        m.d.sync += prev.eq(self.input[0:31])
+        with m.If(prev != self.input[0:31]):
+            m.d.sync += new_signal.eq(1)
+        with m.Else():
+            m.d.sync += new_signal.eq(0)
+
+        with m.If(self.is_falling()):
             m.d.comb += s2v.sample.eq(~self.input[0:4])
-        with m.Elif(self.input[36] == 1):
+        with m.Elif(self.is_rising()):
             m.d.comb += s2v.sample.eq(self.input[0:4])
 
         with m.If(self.polarity == RISING_IS_START):
-            with m.If(self.input[36] == 1):
+            with m.If(self.is_rising()):
                 m.d.sync += [
                         start.eq(self.input[0:36]),
                         fine_start.eq(s2v.value),
                         time.eq(self.input[4:4+16])
                         ]
-            with m.Elif(self.input[37] == 1):
+            with m.Elif(self.is_falling()):
                 m.d.sync += [
                         end.eq(self.input[0:36]),
                         fine_end.eq(s2v.value),
                         diff[2:].eq(self.input[4:4+32] - start[4:4+32])
                         ]
+                with m.If(new_signal == 1):
+                    m.d.sync += self.rdy.eq(1)
+                with m.Else():
+                    m.d.sync += self.rdy.eq(0)
         with m.Elif(self.polarity == FALLING_IS_START):
-            with m.If(self.input[37] == 1):
+            with m.If(self.is_falling()):
                 m.d.sync += [
                         start.eq(self.input[0:36]),
+                        fine_start.eq(s2v.value),
                         time.eq(self.input[4:4+16])
                 ]
-            with m.Elif(self.input[36] == 1):
+            with m.Elif(self.is_rising()):
                 m.d.sync += [
                         end.eq(self.input[0:36]),
+                        fine_end.eq(s2v.value),
                         diff[2:].eq(self.input[4:4+32] - start[4:4+32])
                         ]
+                with m.If(new_signal == 1):
+                    m.d.sync += self.rdy.eq(1)
+                with m.Else():
+                    m.d.sync += self.rdy.eq(0)
 
         m.d.comb += [
                 diff2.eq(diff + fine_end - fine_start),
@@ -99,6 +134,8 @@ class TdcToHit(Elaboratable):
                 ]
 
         m.submodules.s2v = s2v
+        m.submodules.count_rise = count_rise
+        m.submodules.count_fall = count_fall
 
         return m
 
@@ -107,19 +144,26 @@ if __name__ == "__main__":
     dut2 = SampleToVal()
 
     m = Module()
-    m.submodules += [dut, dut2]
+    m.submodules.dut_tdc = dut
+    m.submodules.dut_s2v = dut2
 
     sim = Simulator(m)
 
     def test_tdc2hit():
         yield dut.polarity.eq(RISING_IS_START)
         yield dut.input.eq((1 << 36) | (15 << 4) | 0b1110) # rising, sample = 1
+        assert((yield dut.counter_rise) == 0)
+        assert((yield dut.counter_fall) == 0)
         yield
         assert dut.output.eq(0)
         yield dut.input.eq((1 << 37) | (16 << 4) | 0b0011) # falling, sample = 1
         yield
+        assert((yield dut.counter_rise) == 1)
+        assert((yield dut.counter_fall) == 0)
         yield
         assert((yield dut.output) == (0b1111 << 16) | 5)
+        assert((yield dut.counter_rise) == 1)
+        assert((yield dut.counter_fall) == 1)
 
     def test_s2v():
         yield dut2.sample.eq(0)
