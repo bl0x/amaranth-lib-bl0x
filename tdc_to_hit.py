@@ -93,40 +93,51 @@ class TdcToHit(Elaboratable):
         with m.Elif(self.is_rising()):
             m.d.comb += s2v.sample.eq(self.input[0:4])
 
-        with m.If(self.polarity == RISING_IS_START):
-            with m.If(self.is_rising()):
+        with m.FSM(reset="RESET") as start_stop:
+            with m.State("RESET"):
                 m.d.sync += [
-                        start.eq(self.input[0:36]),
-                        fine_start.eq(s2v.value),
-                        time.eq(self.input[4:4+16])
+                        new_signal.eq(0),
+                        self.rdy.eq(0)
                         ]
-            with m.Elif(self.is_falling()):
-                m.d.sync += [
-                        end.eq(self.input[0:36]),
-                        fine_end.eq(s2v.value),
-                        diff[2:].eq(self.input[4:4+32] - start[4:4+32])
+                m.next = "WAIT_START"
+
+            with m.State("WAIT_START"):
+                with m.If(self.polarity == RISING_IS_START):
+                    with m.If(self.is_rising()):
+                        m.d.sync += [
+                                start.eq(self.input[0:36]),
+                                fine_start.eq(s2v.value),
+                                time.eq(self.input[4:4+16])
+                                ]
+                        m.next = "WAIT_END"
+                with m.Elif(self.polarity == FALLING_IS_START):
+                    with m.If(self.is_falling()):
+                        m.d.sync += [
+                                start.eq(self.input[0:36]),
+                                fine_start.eq(s2v.value),
+                                time.eq(self.input[4:4+16])
                         ]
-                with m.If(new_signal == 1):
-                    m.d.sync += self.rdy.eq(1)
-                with m.Else():
-                    m.d.sync += self.rdy.eq(0)
-        with m.Elif(self.polarity == FALLING_IS_START):
-            with m.If(self.is_falling()):
-                m.d.sync += [
-                        start.eq(self.input[0:36]),
-                        fine_start.eq(s2v.value),
-                        time.eq(self.input[4:4+16])
-                ]
-            with m.Elif(self.is_rising()):
-                m.d.sync += [
-                        end.eq(self.input[0:36]),
-                        fine_end.eq(s2v.value),
-                        diff[2:].eq(self.input[4:4+32] - start[4:4+32])
-                        ]
-                with m.If(new_signal == 1):
-                    m.d.sync += self.rdy.eq(1)
-                with m.Else():
-                    m.d.sync += self.rdy.eq(0)
+                        m.next = "WAIT_END"
+
+            with m.State("WAIT_END"):
+                with m.If(self.polarity == RISING_IS_START):
+                    with m.If(self.is_falling()):
+                        m.d.sync += [
+                                end.eq(self.input[0:36]),
+                                fine_end.eq(s2v.value),
+                                diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
+                                self.rdy.eq(1)
+                                ]
+                        m.next = "RESET"
+                with m.Elif(self.polarity == FALLING_IS_START):
+                    with m.If(self.is_rising()):
+                        m.d.sync += [
+                                end.eq(self.input[0:36]),
+                                fine_end.eq(s2v.value),
+                                diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
+                                self.rdy.eq(1)
+                                ]
+                        m.next = "RESET"
 
         m.d.comb += [
                 diff2.eq(diff + fine_end - fine_start),
@@ -164,6 +175,9 @@ if __name__ == "__main__":
         assert((yield dut.output) == (0b1111 << 16) | 5)
         assert((yield dut.counter_rise) == 1)
         assert((yield dut.counter_fall) == 1)
+        assert((yield dut.rdy) == 1)
+        yield
+        assert((yield dut.rdy) == 0)
 
     def test_s2v():
         yield dut2.sample.eq(0)
