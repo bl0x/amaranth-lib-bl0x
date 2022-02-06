@@ -16,10 +16,11 @@ class MMCME2(Elaboratable):
     clkin_range = (10e6, 800e6)
     vco_range = (600e6, 1200e6)
 
-    def __init__(self, freq_in):
+    def __init__(self, freq_in, domain="sync"):
         self.freq_in = freq_in
+        self._domain = domain
 
-        self.clkin = Signal()
+        self.clkin = ClockSignal(self._domain)
         self.reset = Signal()
         self.locked = Signal()
 
