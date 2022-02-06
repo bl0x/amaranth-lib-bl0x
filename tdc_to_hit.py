@@ -126,7 +126,7 @@ class TdcToHit(Elaboratable):
                         m.d.sync += [
                             end.eq(self.input[0:36]),
                             fine_end.eq(s2v.value),
-                            diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
+                            diff.eq(self.input[4:4+32] - start[4:4+32]),
                             self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
@@ -136,7 +136,7 @@ class TdcToHit(Elaboratable):
                         m.d.sync += [
                             end.eq(self.input[0:36]),
                             fine_end.eq(s2v.value),
-                            diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
+                            diff.eq(self.input[4:4+32] - start[4:4+32]),
                             self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
@@ -144,7 +144,7 @@ class TdcToHit(Elaboratable):
 
         m.d.comb += [
             diff2.eq(
-                Mux(diff < 0xffff, diff + fine_end - fine_start, 0xffff)
+                Mux(diff < 0x3fff, (diff << 2) + fine_end - fine_start, 0xffff)
             ),
             self.output.eq(Cat(diff2, time))
         ]
