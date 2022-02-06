@@ -94,8 +94,6 @@ class SerialDecoder(Elaboratable):
                             self.arg_off.eq(self.pos + 1)
                             ]
                     m.next = "WAIT_ARG"
-                with m.Else():
-                    m.next = "WAIT_COMMAND"
             with m.State("WAIT_ARG"):
                 with m.If(self.write_rose == 1):
                     m.d.sync += [
@@ -111,8 +109,6 @@ class SerialDecoder(Elaboratable):
                                     self.arg_len.eq(self.pos - self.arg_off - 2)
                                     ]
                             m.next = "WAIT_ARG_CONVERT"
-                with m.Else():
-                            m.next = "WAIT_ARG"
             with m.State("WAIT_ARG_CONVERT"):
                 m.d.sync += self.seen_crlf.eq(0)
                 m.next = "WAIT_ARG_CONVERT2"
@@ -134,16 +130,19 @@ class SerialDecoder(Elaboratable):
                 with m.If(self.seen_crlf == 1):
                     m.d.sync += self.arg_convert_busy.eq(1)
                     m.next = "DECODE_ARG"
-                with m.Else():
-                    m.next = "WAIT_INPUT"
             with m.State("DECODE_ARG"):
                 with m.If(self.arg_len == 1):
                     m.d.sync += self.decoded_arg.eq(
-                                self.buffer[self.arg_off] - ord('0'))
+                        self.buffer[self.arg_off] - ord('0'))
                 with m.Elif(self.arg_len == 2):
                     m.d.sync += self.decoded_arg.eq(
-                                10 * (self.buffer[self.arg_off] - ord('0'))
-                                + (self.buffer[self.arg_off + 1] - ord('0')))
+                        10 * (self.buffer[self.arg_off] - ord('0'))
+                        + (self.buffer[self.arg_off + 1] - ord('0')))
+                with m.Elif(self.arg_len == 3):
+                    m.d.sync += self.decoded_arg.eq(
+                        100 * (self.buffer[self.arg_off] - ord('0'))
+                        + 10 * (self.buffer[self.arg_off + 1] - ord('0'))
+                        + (self.buffer[self.arg_off + 2] - ord('0')))
                 m.next = "DECODE_ARG_DONE"
             with m.State("DECODE_ARG_DONE"):
                 m.d.sync += self.arg_convert_busy.eq(0)
@@ -153,8 +152,6 @@ class SerialDecoder(Elaboratable):
             with m.State("WAIT_INPUT"):
                 with m.If(self.command_complete == 1):
                     m.next = "DECODE_COMMAND"
-                with m.Else():
-                    m.next = "WAIT_INPUT"
             with m.State("DECODE_COMMAND"):
                 with m.Switch(self.buffer[0]):
                     for k,v in self.commands.items():
@@ -238,7 +235,7 @@ if __name__ == '__main__':
         assert (yield dut.command) == cmd["value"], "Didn't get {} = R!".format(cmd["value"], cmd["char"])
         if arg is not None:
             print("dut.arg = {}".format((yield dut.arg)))
-            assert (yield dut.arg) == arg, "Didn't get argument {}!".format(arg)
+            assert (yield dut.arg) == arg, "Didn't get argument {}, but {}!".format(arg, (yield dut.arg))
 
 
     def proc():
@@ -249,6 +246,9 @@ if __name__ == '__main__':
                 yield from test_command(dut.commands[cmd], None, speed_divider)
                 yield from test_command(dut.commands[cmd], 7, speed_divider)
                 yield from test_command(dut.commands[cmd], 42, speed_divider)
+                yield from test_command(dut.commands[cmd], 99, speed_divider)
+                yield from test_command(dut.commands[cmd], 100, speed_divider)
+                yield from test_command(dut.commands[cmd], 240, speed_divider)
 
 
         yield from clear()

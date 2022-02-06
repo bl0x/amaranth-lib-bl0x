@@ -16,7 +16,7 @@ from tdc_to_hit import TdcToHit
 #   output: 16 bit timestamp & 16 bit measured time
 #   counter: number of rising edges of input signal seen
 
-class TestTdcFifoHit(Elaboratable):
+class TdcChannel(Elaboratable):
 
     def __init__(self):
         # in
@@ -40,7 +40,7 @@ class TestTdcFifoHit(Elaboratable):
                 fifo.w_data.eq(tdc.output),
                 fifo.w_en.eq(tdc.rdy),
                 tdc2hit.input.eq(fifo.r_data),
-                self.output.eq(tdc2hit.output),
+                self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0)),
                 self.counter.eq(tdc2hit.counter_rise)
                 ]
 
@@ -56,7 +56,7 @@ class TestTdcFifoHit(Elaboratable):
         return m
 
 if __name__ == "__main__":
-    dut = TestTdcFifoHit()
+    dut = TdcChannel()
     i0 = Signal()
     t = Signal(32)
     out = Signal(32)
