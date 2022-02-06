@@ -1,7 +1,6 @@
 from amaranth import *
 from amaranth.sim import *
 
-from tdc import Tdc
 from counter import Counter
 
 # Transforms 38-bit output from a Tdc into hit data of the form:
@@ -45,6 +44,7 @@ class TdcToHit(Elaboratable):
         # in
         self.input = Signal(38)
         self.polarity = Signal()
+        self.busy = Signal()
         # out
         self.output = Signal(32)
         self.rdy = Signal()
@@ -65,7 +65,7 @@ class TdcToHit(Elaboratable):
         fine_end = Signal(2)
         end = Signal(36)
         time = Signal(16)
-        diff = Signal(16)
+        diff = Signal(32 + 2) # nanoseconds
         diff2 = Signal(16)
         new_signal = Signal()
 
@@ -76,14 +76,14 @@ class TdcToHit(Elaboratable):
         m = Module()
 
         m.d.comb += [
-                count_rise.input.eq(self.input[36]),
-                count_fall.input.eq(self.input[37]),
-                self.counter_rise.eq(count_rise.count),
-                self.counter_fall.eq(count_fall.count),
-                ]
+            count_rise.input.eq(self.input[36]),
+            count_fall.input.eq(self.input[37]),
+            self.counter_rise.eq(count_rise.count),
+            self.counter_fall.eq(count_fall.count),
+        ]
 
-        m.d.sync += prev.eq(self.input[0:31])
-        with m.If(prev != self.input[0:31]):
+        m.d.sync += prev.eq(self.input[4:36])
+        with m.If(prev != self.input[4:36]):
             m.d.sync += new_signal.eq(1)
         with m.Else():
             m.d.sync += new_signal.eq(0)
@@ -96,26 +96,27 @@ class TdcToHit(Elaboratable):
         with m.FSM(reset="RESET") as start_stop:
             with m.State("RESET"):
                 m.d.sync += [
-                        new_signal.eq(0),
-                        self.rdy.eq(0)
-                        ]
+                    new_signal.eq(0),
+                    self.rdy.eq(0),
+                    self.busy.eq(0)
+                ]
                 m.next = "WAIT_START"
 
             with m.State("WAIT_START"):
                 with m.If(self.polarity == RISING_IS_START):
                     with m.If(self.is_rising()):
                         m.d.sync += [
-                                start.eq(self.input[0:36]),
-                                fine_start.eq(s2v.value),
-                                time.eq(self.input[4:4+16])
-                                ]
+                            start.eq(self.input[0:36]),
+                            fine_start.eq(s2v.value),
+                            time.eq(self.input[4:4+16])
+                        ]
                         m.next = "WAIT_END"
                 with m.Elif(self.polarity == FALLING_IS_START):
                     with m.If(self.is_falling()):
                         m.d.sync += [
-                                start.eq(self.input[0:36]),
-                                fine_start.eq(s2v.value),
-                                time.eq(self.input[4:4+16])
+                            start.eq(self.input[0:36]),
+                            fine_start.eq(s2v.value),
+                            time.eq(self.input[4:4+16])
                         ]
                         m.next = "WAIT_END"
 
@@ -123,26 +124,30 @@ class TdcToHit(Elaboratable):
                 with m.If(self.polarity == RISING_IS_START):
                     with m.If(self.is_falling()):
                         m.d.sync += [
-                                end.eq(self.input[0:36]),
-                                fine_end.eq(s2v.value),
-                                diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
-                                self.rdy.eq(1)
-                                ]
+                            end.eq(self.input[0:36]),
+                            fine_end.eq(s2v.value),
+                            diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
+                            self.rdy.eq(1),
+                            self.busy.eq(1)
+                        ]
                         m.next = "RESET"
                 with m.Elif(self.polarity == FALLING_IS_START):
                     with m.If(self.is_rising()):
                         m.d.sync += [
-                                end.eq(self.input[0:36]),
-                                fine_end.eq(s2v.value),
-                                diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
-                                self.rdy.eq(1)
-                                ]
+                            end.eq(self.input[0:36]),
+                            fine_end.eq(s2v.value),
+                            diff[2:].eq(self.input[4:4+32] - start[4:4+32]),
+                            self.rdy.eq(1),
+                            self.busy.eq(1)
+                        ]
                         m.next = "RESET"
 
         m.d.comb += [
-                diff2.eq(diff + fine_end - fine_start),
-                self.output.eq(Cat(diff2, time))
-                ]
+            diff2.eq(
+                Mux(diff < 0xffff, diff + fine_end - fine_start, 0xffff)
+            ),
+            self.output.eq(Cat(diff2, time))
+        ]
 
         m.submodules.s2v = s2v
         m.submodules.count_rise = count_rise

@@ -1,6 +1,5 @@
 from amaranth import *
 from amaranth.sim import *
-from amaranth.lib.fifo import *
 
 from generic.oversampling_input import OversamplingInput
 
@@ -10,15 +9,18 @@ from generic.oversampling_input import OversamplingInput
 # |    37   |   36   | 35 4 | 3    0 |
 
 class Tdc(Elaboratable):
-    def __init__(self):
+    def __init__(self, domain="fast", domain_90="fast_90"):
         # in
-        self.clk_0 = Signal()
-        self.clk_90 = Signal()
+        self.clk_0 = ClockSignal(domain)
+        self.clk_90 = ClockSignal(domain_90)
         self.input = Signal()
         self.time = Signal(32)
         # out
         self.output = Signal(38)
         self.rdy = Signal()
+
+        self._domain = domain
+        self._domain_90 = domain_90
 
         # internal
         self.sample = Signal(4)
@@ -52,41 +54,42 @@ class Tdc(Elaboratable):
 
         m = Module()
 
-        m.domains += ClockDomain("fast")
-        m.d.comb += ClockSignal("fast").eq(self.clk_0)
-
         m.d.comb += self.connect_to_oversampling_input(os_in)
 
         with m.If((self.falling == 1) | (self.rising == 1)):
             # falling edge
-            m.d.fast += self.output.eq(Cat(Cat(Cat(self.sample, self.time),
-                self.rising), self.falling))
+            m.d[self._domain] += [
+                    self.output.eq(Cat(Cat(Cat(self.sample,
+                        self.time), self.rising), self.falling)),
+                    self.rdy.eq(1)
+                    ]
 
         with m.Else():
             # No change
-            m.d.fast += self.output.eq(C(0, unsigned(37)))
+            m.d[self._domain] += [
+                    self.output.eq(C(0, unsigned(37))),
+                    self.rdy.eq(0)
+                    ]
 
-        m.d.fast += self.prev_last.eq(self.sample[3])
+        m.d[self._domain] += self.prev_last.eq(self.sample[3])
 
         m.submodules.os_in = os_in
         return m
 
 if __name__ == "__main__":
     dut = Tdc()
-    fifo = AsyncFIFO(width=16, depth=8)
-    clk_0 = Signal()
-    clk_90 = Signal()
     i0 = Signal()
     t = Signal(32)
     out = Signal(38)
 
     m = Module()
+    m.domains += ClockDomain("fast")
+    m.domains += ClockDomain("fast_90")
     m.domains += ClockDomain("sync")
-    m.submodules += [dut, fifo]
+    m.domains += ClockDomain("what")
+    m.submodules.dut = dut
 
     m.d.comb += [
-            dut.clk_0.eq(clk_0),
-            dut.clk_90.eq(clk_90),
             dut.input.eq(i0),
             dut.time.eq(t),
             out.eq(dut.output)
@@ -94,18 +97,11 @@ if __name__ == "__main__":
 
     sim = Simulator(m)
 
-    stop = 50
+    stop = 200
 
     def time():
         for i in range(stop):
             yield t.eq(t + 1)
-            yield
-
-    def clocks():
-        for i in range(stop):
-            yield clk_0.eq(~clk_0)
-            yield Delay(1/40e6)
-            yield clk_90.eq(~clk_90)
             yield
 
     def proc():
@@ -128,11 +124,14 @@ if __name__ == "__main__":
             yield from pause(5)
 
 
+    sim.add_clock(1/10e6, domain="what")
+    sim.add_clock(1/1e6, domain="fast")
+    sim.add_clock(1/1e6, phase=(1/1e6)/4, domain="fast_90")
+    sim.add_sync_process(time, domain="fast")
 
-    sim.add_clock(1/20e6)
+    sim.add_clock(1/1e6)
     sim.add_sync_process(proc)
-    sim.add_sync_process(time)
-    sim.add_sync_process(clocks)
     sim.add_sync_process(input)
+
     with sim.write_vcd("tdc.vcd", "tdc.gtkw"):
         sim.run()
