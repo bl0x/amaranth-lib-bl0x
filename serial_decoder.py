@@ -44,10 +44,10 @@ class SerialDecoder(Elaboratable):
         self.write_rose = Signal()
 
         self.commands = {
-                "READ": {"char": 'R', "value": 1},
-                "WRITE": {"char": 'W', "value": 2},
-                "INSERT": {"char": 'I', "value": 3}
-                }
+            "READ": {"char": 'R', "value": 1},
+            "WRITE": {"char": 'W', "value": 2},
+            "INSERT": {"char": 'I', "value": 3}
+        }
         self.separator = ' '
 
         self.ports = (
@@ -62,13 +62,11 @@ class SerialDecoder(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.d.sync += [
-                self.write_prev.eq(self.write),
-                ]
+        m.d.sync += self.write_prev.eq(self.write)
 
         m.d.comb += self.write_rose.eq((self.write == 1) & (self.write_prev == 0))
 
-        with m.FSM(reset="WAIT_COMMAND"):
+        with m.FSM(reset="WAIT_COMMAND") as fsm_decode:
             with m.State("RESET"):
                 m.d.sync += [
                     self.seen_crlf.eq(0),
@@ -125,7 +123,8 @@ class SerialDecoder(Elaboratable):
                 m.d.sync += self.ready.eq(1)
                 m.next = "RESET"
 
-        with m.FSM(reset="WAIT_INPUT"):
+
+        with m.FSM(reset="WAIT_INPUT") as fsm_addr_decode:
             with m.State("WAIT_INPUT"):
                 with m.If(self.seen_crlf == 1):
                     m.d.sync += [
@@ -133,6 +132,7 @@ class SerialDecoder(Elaboratable):
                         self.decoded_arg.eq(0)
                     ]
                     m.next = "DECODE_ARG"
+
             with m.State("DECODE_ARG"):
                 with m.If(self.arg_len > 1):
                     m.d.sync += [
@@ -146,35 +146,16 @@ class SerialDecoder(Elaboratable):
                         + self.buffer[self.arg_off] - ord('0'))
                     m.next = "DECODE_ARG_DONE"
 
-
-#            with m.State("DECODE_ARG"):
-#                with m.If(self.arg_len == 1):
-#                    m.d.sync += self.decoded_arg.eq(
-#                        self.buffer[self.arg_off] - ord('0'))
-#                with m.Elif(self.arg_len == 2):
-#                    m.d.sync += self.decoded_arg.eq(
-#                        10 * (self.buffer[self.arg_off] - ord('0'))
-#                        + (self.buffer[self.arg_off + 1] - ord('0')))
-#                with m.Elif(self.arg_len == 3):
-#                    m.d.sync += self.decoded_arg.eq(
-#                        100 * (self.buffer[self.arg_off] - ord('0'))
-#                        + 10 * (self.buffer[self.arg_off + 1] - ord('0'))
-#                        + (self.buffer[self.arg_off + 2] - ord('0')))
-#                with m.Elif(self.arg_len == 4):
-#                    m.d.sync += self.decoded_arg.eq(
-#                        1000 * (self.buffer[self.arg_off] - ord('0'))
-#                        + 100 * (self.buffer[self.arg_off + 1] - ord('0'))
-#                        + 10 * (self.buffer[self.arg_off + 2] - ord('0'))
-#                        + (self.buffer[self.arg_off + 3] - ord('0')))
-#                m.next = "DECODE_ARG_DONE"
             with m.State("DECODE_ARG_DONE"):
                 m.d.sync += self.arg_convert_busy.eq(0)
                 m.next = "WAIT_INPUT"
 
-        with m.FSM(reset="WAIT_INPUT"):
+
+        with m.FSM(reset="WAIT_INPUT") as fsm_cmd_decode:
             with m.State("WAIT_INPUT"):
                 with m.If(self.command_complete == 1):
                     m.next = "DECODE_COMMAND"
+
             with m.State("DECODE_COMMAND"):
                 with m.Switch(self.buffer[0]):
                     for k,v in self.commands.items():
@@ -188,10 +169,10 @@ class SerialDecoder(Elaboratable):
 
         with m.If(self.clear == 1):
             m.d.sync += [
-                    self.pos.eq(0),
-                    self.command.eq(0),
-                    self.arg.eq(0)
-                    ]
+                self.pos.eq(0),
+                self.command.eq(0),
+                self.arg.eq(0)
+            ]
 
 
         return m
