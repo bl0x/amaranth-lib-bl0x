@@ -29,7 +29,7 @@ class SerialDecoder(Elaboratable):
         self.pos = Signal(unsigned(8))
         self.command = Signal(unsigned(4))
         self.command_complete = Signal()
-        self.arg = Signal(unsigned(8))
+        self.arg = Signal(unsigned(16))
         self.arg_off = Signal(unsigned(8))
         self.arg_len = Signal(unsigned(8))
         self.arg_convert_busy = Signal()
@@ -38,7 +38,7 @@ class SerialDecoder(Elaboratable):
         self.clear = Signal()
         self.seen_crlf = Signal()
         self.decoded_command = Signal(unsigned(4))
-        self.decoded_arg = Signal(unsigned(8))
+        self.decoded_arg = Signal(unsigned(16))
         self.ready = Signal()
         self.write_prev = Signal()
         self.write_rose = Signal()
@@ -51,13 +51,13 @@ class SerialDecoder(Elaboratable):
         self.separator = ' '
 
         self.ports = (
-                self.char,
-                self.write,
-                self.clear,
-                self.command,
-                self.arg,
-                self.ready
-                )
+            self.char,
+            self.write,
+            self.clear,
+            self.command,
+            self.arg,
+            self.ready
+        )
 
     def elaborate(self, platform):
         m = Module()
@@ -71,43 +71,43 @@ class SerialDecoder(Elaboratable):
         with m.FSM(reset="WAIT_COMMAND"):
             with m.State("RESET"):
                 m.d.sync += [
-                        self.seen_crlf.eq(0),
-                        self.command_complete.eq(0),
-                        self.arg_off.eq(0),
-                        self.pos.eq(0),
-                        self.arg_len.eq(0),
-                        self.decoded_arg.eq(0),
-                        self.decoded_command.eq(0)
-                        ]
+                    self.seen_crlf.eq(0),
+                    self.command_complete.eq(0),
+                    self.arg_off.eq(0),
+                    self.pos.eq(0),
+                    self.arg_len.eq(0),
+                    self.decoded_arg.eq(0),
+                    self.decoded_command.eq(0)
+                ]
                 m.next = "WAIT_COMMAND"
             with m.State("WAIT_COMMAND"):
                 with m.If(self.write_rose == 1):
                     m.d.sync += [
-                            self.buffer[self.pos].eq(self.char),
-                            self.pos.eq(self.pos + 1),
-                            self.ready.eq(0),
-                            ]
+                        self.buffer[self.pos].eq(self.char),
+                        self.pos.eq(self.pos + 1),
+                        self.ready.eq(0),
+                    ]
                 with m.If((self.char == ord(self.separator))
                           | (self.char == 0x0d)):
                     m.d.sync += [
-                            self.command_complete.eq(1),
-                            self.arg_off.eq(self.pos + 1)
-                            ]
+                        self.command_complete.eq(1),
+                        self.arg_off.eq(self.pos + 1)
+                    ]
                     m.next = "WAIT_ARG"
             with m.State("WAIT_ARG"):
                 with m.If(self.write_rose == 1):
                     m.d.sync += [
-                            self.buffer[self.pos].eq(self.char),
-                            self.pos.eq(self.pos + 1),
-                            self.command_complete.eq(0)
-                            ]
+                        self.buffer[self.pos].eq(self.char),
+                        self.pos.eq(self.pos + 1),
+                        self.command_complete.eq(0)
+                    ]
                 with m.If(self.pos > 1):
                     with m.If(self.buffer[self.pos - 2] == 0x0d):
                         with m.If(self.buffer[self.pos - 1] == 0x0a):
                             m.d.sync += [
-                                    self.seen_crlf.eq(1),
-                                    self.arg_len.eq(self.pos - self.arg_off - 2)
-                                    ]
+                                self.seen_crlf.eq(1),
+                                self.arg_len.eq(self.pos - self.arg_off - 2)
+                            ]
                             m.next = "WAIT_ARG_CONVERT"
             with m.State("WAIT_ARG_CONVERT"):
                 m.d.sync += self.seen_crlf.eq(0)
@@ -119,7 +119,7 @@ class SerialDecoder(Elaboratable):
                     m.d.sync += [
                         self.command.eq(self.decoded_command),
                         self.arg.eq(self.decoded_arg)
-                        ]
+                    ]
                     m.next = "READY"
             with m.State("READY"):
                 m.d.sync += self.ready.eq(1)
@@ -128,22 +128,45 @@ class SerialDecoder(Elaboratable):
         with m.FSM(reset="WAIT_INPUT"):
             with m.State("WAIT_INPUT"):
                 with m.If(self.seen_crlf == 1):
-                    m.d.sync += self.arg_convert_busy.eq(1)
+                    m.d.sync += [
+                        self.arg_convert_busy.eq(1),
+                        self.decoded_arg.eq(0)
+                    ]
                     m.next = "DECODE_ARG"
             with m.State("DECODE_ARG"):
-                with m.If(self.arg_len == 1):
-                    m.d.sync += self.decoded_arg.eq(
-                        self.buffer[self.arg_off] - ord('0'))
-                with m.Elif(self.arg_len == 2):
-                    m.d.sync += self.decoded_arg.eq(
-                        10 * (self.buffer[self.arg_off] - ord('0'))
-                        + (self.buffer[self.arg_off + 1] - ord('0')))
-                with m.Elif(self.arg_len == 3):
-                    m.d.sync += self.decoded_arg.eq(
-                        100 * (self.buffer[self.arg_off] - ord('0'))
-                        + 10 * (self.buffer[self.arg_off + 1] - ord('0'))
-                        + (self.buffer[self.arg_off + 2] - ord('0')))
-                m.next = "DECODE_ARG_DONE"
+                with m.If(self.arg_len > 1):
+                    m.d.sync += [
+                        self.decoded_arg.eq(self.decoded_arg * 10
+                            + self.buffer[self.arg_off] - ord('0')),
+                        self.arg_len.eq(self.arg_len - 1),
+                        self.arg_off.eq(self.arg_off + 1)
+                    ]
+                with m.Else():
+                    m.d.sync += self.decoded_arg.eq(self.decoded_arg * 10
+                        + self.buffer[self.arg_off] - ord('0'))
+                    m.next = "DECODE_ARG_DONE"
+
+
+#            with m.State("DECODE_ARG"):
+#                with m.If(self.arg_len == 1):
+#                    m.d.sync += self.decoded_arg.eq(
+#                        self.buffer[self.arg_off] - ord('0'))
+#                with m.Elif(self.arg_len == 2):
+#                    m.d.sync += self.decoded_arg.eq(
+#                        10 * (self.buffer[self.arg_off] - ord('0'))
+#                        + (self.buffer[self.arg_off + 1] - ord('0')))
+#                with m.Elif(self.arg_len == 3):
+#                    m.d.sync += self.decoded_arg.eq(
+#                        100 * (self.buffer[self.arg_off] - ord('0'))
+#                        + 10 * (self.buffer[self.arg_off + 1] - ord('0'))
+#                        + (self.buffer[self.arg_off + 2] - ord('0')))
+#                with m.Elif(self.arg_len == 4):
+#                    m.d.sync += self.decoded_arg.eq(
+#                        1000 * (self.buffer[self.arg_off] - ord('0'))
+#                        + 100 * (self.buffer[self.arg_off + 1] - ord('0'))
+#                        + 10 * (self.buffer[self.arg_off + 2] - ord('0'))
+#                        + (self.buffer[self.arg_off + 3] - ord('0')))
+#                m.next = "DECODE_ARG_DONE"
             with m.State("DECODE_ARG_DONE"):
                 m.d.sync += self.arg_convert_busy.eq(0)
                 m.next = "WAIT_INPUT"
@@ -244,11 +267,16 @@ if __name__ == '__main__':
             for cmd in dut.commands:
                 print("cmd = {}".format(cmd))
                 yield from test_command(dut.commands[cmd], None, speed_divider)
+                yield from test_command(dut.commands[cmd], 0, speed_divider)
                 yield from test_command(dut.commands[cmd], 7, speed_divider)
                 yield from test_command(dut.commands[cmd], 42, speed_divider)
                 yield from test_command(dut.commands[cmd], 99, speed_divider)
                 yield from test_command(dut.commands[cmd], 100, speed_divider)
                 yield from test_command(dut.commands[cmd], 240, speed_divider)
+                yield from test_command(dut.commands[cmd], 1000, speed_divider)
+                yield from test_command(dut.commands[cmd], 1024, speed_divider)
+                yield from test_command(dut.commands[cmd], 23456, speed_divider)
+                yield from test_command(dut.commands[cmd], 65535, speed_divider)
 
 
         yield from clear()
