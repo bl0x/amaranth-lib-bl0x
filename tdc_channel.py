@@ -26,6 +26,11 @@ class TdcChannel(Elaboratable):
         self.output = Signal(32)
         self.counter = Signal(16)
 
+        self.debug_tdc_rdy = Signal()
+        self.debug_fifo_rdy = Signal()
+        self.debug_hit_busy = Signal()
+        self.debug_hit_rdy = Signal()
+
     def elaborate(self, platform):
 
         tdc = Tdc()
@@ -35,14 +40,21 @@ class TdcChannel(Elaboratable):
         m = Module()
 
         m.d.comb += [
-                tdc.input.eq(self.input),
-                tdc.time.eq(self.time),
-                fifo.w_data.eq(tdc.output),
-                fifo.w_en.eq(tdc.rdy),
-                tdc2hit.input.eq(fifo.r_data),
-                self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0)),
-                self.counter.eq(tdc2hit.counter_rise)
-                ]
+            tdc.input.eq(self.input),
+            tdc.time.eq(self.time),
+            fifo.w_data.eq(tdc.output),
+            fifo.w_en.eq(tdc.rdy),
+            tdc2hit.input.eq(fifo.r_data),
+            self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0)),
+            self.counter.eq(tdc2hit.counter_rise)
+        ]
+
+        m.d.comb += [
+            self.debug_tdc_rdy.eq(tdc.rdy),
+            self.debug_fifo_rdy.eq(fifo.r_rdy),
+            self.debug_hit_busy.eq(tdc2hit.busy),
+            self.debug_hit_rdy.eq(tdc2hit.rdy)
+        ]
 
         with m.If((fifo.r_rdy == 1) & (tdc2hit.busy != 1)):
             m.d.sync += fifo.r_en.eq(~fifo.r_en)
