@@ -65,7 +65,7 @@ class BinToBcd(Elaboratable):
         return m
 
 if __name__ == '__main__':
-    dut = BinToBcd(bits=8)
+    dut = BinToBcd(bits=16)
 
     sim = Simulator(dut)
 
@@ -90,6 +90,8 @@ if __name__ == '__main__':
         yield from test_int(9, 0x9)
         yield from test_int(42, 0x42)
         yield from test_int(255, 0x255)
+        yield from test_int(1337, 0x1337)
+        yield from test_int(24356, 0x24356)
 
     sim.add_clock(1/12e6)
     sim.add_sync_process(proc)
