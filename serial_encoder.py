@@ -14,7 +14,7 @@ class SerialEncoder(Elaboratable):
     def __init__(self, bufsize=16):
         self.bufsize = bufsize
 
-        self.data = Signal(unsigned(8))
+        self.data = Signal(unsigned(16))
         self.write = Signal()
         self.trg = Signal()
         self.rdy = Signal()
@@ -33,15 +33,13 @@ class SerialEncoder(Elaboratable):
                 ]
 
     def elaborate(self, platform):
-        bcd = BinToBcd(bits=8)
-        buffer = Array([Signal(unsigned(8)) for _ in range(self.bufsize)])
+        bcd = BinToBcd(bits=16)
+        buffer = Array([Signal(unsigned(16)) for _ in range(self.bufsize)])
         size = Signal(unsigned(8))
 
         m = Module()
 
-        m.submodules += [
-                bcd
-                ]
+        m.submodules.bcd = bcd
 
         bytes_to_encode = Signal(unsigned(8))
         pos = Signal(8)
@@ -219,7 +217,8 @@ if __name__ == '__main__':
         yield from write(0x4)
         yield from write(0x0a)
         yield from write(0xfe)
-        yield from transmit(14)
+        yield from write(0x1337)
+        yield from transmit(24)
         for i in range(200):
             yield
 
