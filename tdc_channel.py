@@ -45,7 +45,7 @@ class TdcChannel(Elaboratable):
             fifo.w_data.eq(tdc.output),
             fifo.w_en.eq(tdc.rdy),
             tdc2hit.input.eq(fifo.r_data),
-            self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0)),
+            self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0xffffffff)),
             self.counter.eq(tdc2hit.counter_rise)
         ]
 

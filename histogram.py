@@ -31,14 +31,16 @@ class Histogram(Elaboratable):
         w_en = Signal()
         w_data = Signal(self.bits)
         r_addr = Signal(range(1, self.bins))
+        w_addr = Signal(range(1, self.bins))
         increment_delayed = Signal()
+        increment_addr = Signal(range(1, self.bins))
 
         storage = Memory(width=self.bits, depth=self.bins)
         w_port = m.submodules.w_port = storage.write_port()
         r_port = m.submodules.r_port = storage.read_port()
 
         m.d.comb += [
-            w_port.addr.eq(self.index_w),
+            w_port.addr.eq(w_addr),
             w_port.data.eq(w_data),
             w_port.en.eq(w_en),
             r_port.addr.eq(r_addr),
@@ -46,7 +48,10 @@ class Histogram(Elaboratable):
         ]
 
         m.d.sync += increment_delayed.eq(self.increment)
+        m.d.sync += increment_addr.eq(self.index_w)
 
+        m.d.comb += w_addr.eq(
+            Mux(increment_delayed, increment_addr, self.index_w))
         m.d.comb += w_en.eq(self.write | increment_delayed)
         m.d.comb += r_addr.eq(Mux(self.increment, self.index_w, self.index_r))
         m.d.comb += w_data.eq(Mux(increment_delayed, r_port.data + 1, self.data_w))
@@ -79,6 +84,7 @@ if __name__ == '__main__':
         # reset write
         yield dut.write.eq(0)
         yield dut.data_w.eq(0)
+        yield dut.index_w.eq(0)
         yield
 
     def read(index):
@@ -89,6 +95,7 @@ if __name__ == '__main__':
 
         # reset read
         yield dut.read.eq(0)
+        yield dut.index_r.eq(0)
         yield
 
     def increment(index):
@@ -98,6 +105,7 @@ if __name__ == '__main__':
         yield
 
         # reset increment
+        yield dut.index_w.eq(0)
         yield dut.increment.eq(0)
         yield
 
