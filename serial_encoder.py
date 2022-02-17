@@ -23,14 +23,14 @@ class SerialEncoder(Elaboratable):
         self.tx_trg = Signal()
 
         self.ports = [
-                self.write,
-                self.data,
-                self.trg,
-                self.rdy,
-                self.tx,
-                self.tx_rdy,
-                self.tx_trg
-                ]
+            self.write,
+            self.data,
+            self.trg,
+            self.rdy,
+            self.tx,
+            self.tx_rdy,
+            self.tx_trg
+        ]
 
     def elaborate(self, platform):
         bcd = BinToBcd(bits=16)
@@ -52,15 +52,15 @@ class SerialEncoder(Elaboratable):
                 m.d.sync += self.rdy.eq(0)
                 with m.If(self.trg == 1):
                     m.d.sync += [
-                            bytes_to_encode.eq(size),
-                            pos.eq(0)
-                            ]
+                        bytes_to_encode.eq(size),
+                        pos.eq(0)
+                    ]
                     m.next = "ENCODE"
                 with m.If(self.write == 1):
                     m.d.sync += [
-                            size.eq(size + 1),
-                            buffer[size].eq(self.data)
-                            ]
+                        size.eq(size + 1),
+                        buffer[size].eq(self.data)
+                    ]
                     m.next = "IDLE"
 
             with m.State("ENCODE"):
@@ -71,11 +71,11 @@ class SerialEncoder(Elaboratable):
 
             with m.State("LOAD"):
                 m.d.sync += [
-                        bcd.bin.eq(buffer[pos]),
-                        bcd.trg.eq(1),
-                        bcd_pos.eq(0),
-                        seen_nonzero.eq(0)
-                        ]
+                    bcd.bin.eq(buffer[pos]),
+                    bcd.trg.eq(1),
+                    bcd_pos.eq(0),
+                    seen_nonzero.eq(0)
+                ]
                 m.next = "BCD_TRG_OFF"
 
             with m.State("BCD_TRG_OFF"):
@@ -93,10 +93,10 @@ class SerialEncoder(Elaboratable):
                     with m.If((bcd_pos == bcd.digits) |
                         (digit != 0) | (seen_nonzero == 1)):
                         m.d.sync += [
-                                seen_nonzero.eq(1),
-                                self.tx.eq(digit + ord('0')),
-                                self.tx_trg.eq(1),
-                                ]
+                            seen_nonzero.eq(1),
+                            self.tx.eq(digit + ord('0')),
+                            self.tx_trg.eq(1),
+                        ]
                         m.next = "WAIT_TX"
                     with m.Else():
                         m.next = "SEND_BCD"
@@ -113,9 +113,9 @@ class SerialEncoder(Elaboratable):
 
             with m.State("SEND_SPACER"):
                 m.d.sync += [
-                        self.tx.eq(ord(' ')),
-                        self.tx_trg.eq(1)
-                        ]
+                    self.tx.eq(ord(' ')),
+                    self.tx_trg.eq(1)
+                ]
                 m.next = "SEND_SPACER2"
 
             with m.State("SEND_SPACER2"):
@@ -129,16 +129,16 @@ class SerialEncoder(Elaboratable):
             with m.State("ADVANCE"):
                 with m.If(bytes_to_encode > 0):
                     m.d.sync += [
-                            bytes_to_encode.eq(bytes_to_encode - 1),
-                            pos.eq(pos + 1)
-                            ]
+                        bytes_to_encode.eq(bytes_to_encode - 1),
+                        pos.eq(pos + 1)
+                    ]
                 m.next = "ENCODE"
 
             with m.State("SEND_TERMINATOR1"):
                 m.d.sync += [
-                        self.tx.eq(ord('\r')),
-                        self.tx_trg.eq(1)
-                        ]
+                    self.tx.eq(ord('\r')),
+                    self.tx_trg.eq(1)
+                ]
                 m.next = "SEND_TERMINATOR2"
 
             with m.State("SEND_TERMINATOR2"):
@@ -151,9 +151,9 @@ class SerialEncoder(Elaboratable):
 
             with m.State("SEND_TERMINATOR4"):
                 m.d.sync += [
-                        self.tx.eq(ord('\n')),
-                        self.tx_trg.eq(1)
-                        ]
+                    self.tx.eq(ord('\n')),
+                    self.tx_trg.eq(1)
+                ]
                 m.next = "SEND_TERMINATOR5"
 
             with m.State("SEND_TERMINATOR5"):
@@ -166,9 +166,9 @@ class SerialEncoder(Elaboratable):
 
             with m.State("DONE"):
                 m.d.sync += [
-                        self.rdy.eq(1),
-                        size.eq(0)
-                        ]
+                    self.rdy.eq(1),
+                    size.eq(0)
+                ]
                 m.next = "IDLE"
 
         return m
