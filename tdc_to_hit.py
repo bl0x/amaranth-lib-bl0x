@@ -45,6 +45,7 @@ class TdcToHit(Elaboratable):
         self.input = Signal(38)
         self.polarity = Signal()
         self.busy = Signal()
+        self.strobe = Signal()
         # out
         self.output = Signal(32)
         self.rdy = Signal()
@@ -130,7 +131,7 @@ class TdcToHit(Elaboratable):
                             self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
-                        m.next = "RESET"
+                        m.next = "WAIT_STROBE"
                 with m.Elif(self.polarity == FALLING_IS_START):
                     with m.If(self.is_rising()):
                         m.d.sync += [
@@ -140,7 +141,12 @@ class TdcToHit(Elaboratable):
                             self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
-                        m.next = "RESET"
+                        m.next = "WAIT_STROBE"
+
+            with m.State("WAIT_STROBE"):
+                m.d.sync += self.busy.eq(0)
+                with m.If(self.strobe == 1):
+                    m.next = "RESET"
 
         m.d.comb += [
             diff2.eq(

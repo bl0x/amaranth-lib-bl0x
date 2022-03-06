@@ -1,6 +1,7 @@
 from amaranth import *
 from amaranth.sim import *
 from amaranth.lib.fifo import AsyncFIFO
+from amaranth.lib.cdc import PulseSynchronizer
 
 from tdc import Tdc
 from tdc_to_hit import TdcToHit
@@ -22,6 +23,7 @@ class TdcChannel(Elaboratable):
         # in
         self.input = Signal()
         self.time = Signal(32)
+        self.strobe = Signal()
         # out
         self.output = Signal(32)
         self.counter = Signal(16)
@@ -30,6 +32,7 @@ class TdcChannel(Elaboratable):
         self.debug_fifo_rdy = Signal()
         self.debug_hit_busy = Signal()
         self.debug_hit_rdy = Signal()
+        self.strobe2 = Signal()
 
     def elaborate(self, platform):
 
@@ -45,6 +48,7 @@ class TdcChannel(Elaboratable):
             fifo.w_data.eq(tdc.output),
             fifo.w_en.eq(tdc.rdy),
             tdc2hit.input.eq(fifo.r_data),
+            tdc2hit.strobe.eq(self.strobe),
             self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0xffffffff)),
             self.counter.eq(tdc2hit.counter_rise)
         ]
@@ -56,7 +60,23 @@ class TdcChannel(Elaboratable):
             self.debug_hit_rdy.eq(tdc2hit.rdy)
         ]
 
-        with m.If((fifo.r_rdy == 1) & (tdc2hit.busy != 1)):
+        with m.FSM(reset="WAIT_STROBE") as strobe_fsm:
+            with m.State("WAIT_STROBE"):
+                m.d.sync += self.strobe2.eq(0)
+                with m.If(self.strobe == 1):
+                    m.d.sync += self.strobe2.eq(1)
+                    m.next = "GO1"
+            with m.State("GO1"):
+                m.d.sync += self.strobe2.eq(0)
+                m.next = "GO2"
+            with m.State("GO2"):
+                m.d.sync += self.strobe2.eq(1)
+                m.next = "GO3"
+            with m.State("GO3"):
+                m.d.sync += self.strobe2.eq(0)
+                m.next = "WAIT_STROBE"
+
+        with m.If((fifo.r_rdy == 1) & (tdc2hit.busy != 1) & (self.strobe2 == 1)):
             m.d.sync += fifo.r_en.eq(~fifo.r_en)
         with m.Else():
             m.d.sync += fifo.r_en.eq(0)
@@ -68,11 +88,13 @@ class TdcChannel(Elaboratable):
         return m
 
 if __name__ == "__main__":
-    dut = TdcChannel()
+    dut = DomainRenamer("clk100")(TdcChannel())
     i0 = Signal()
     t = Signal(32)
     out = Signal(32)
     counter = Signal(16)
+    strobe = Signal()
+    strobe_100 = Signal()
 
     m = Module()
     m.domains += ClockDomain("sync")
@@ -80,11 +102,17 @@ if __name__ == "__main__":
     m.domains += ClockDomain("input")
     m.submodules.dut = dut
 
+    strobe_sync = PulseSynchronizer("sync", "clk100")
+    m.submodules.strobe_sync = strobe_sync
+
     m.d.comb += [
+        strobe_sync.i.eq(strobe),
+        strobe_100.eq(strobe_sync.o),
         dut.input.eq(i0),
         dut.time.eq(t),
         out.eq(dut.output),
-        counter.eq(dut.counter)
+        counter.eq(dut.counter),
+        dut.strobe.eq(strobe_100)
     ]
 
     sim = Simulator(m)
@@ -120,11 +148,24 @@ if __name__ == "__main__":
         yield from pause(80)
         yield from pulse(37)
 
-    sim.add_clock(1/20e6)
-    sim.add_clock(1/200e6, domain="input")
-    sim.add_clock(1/100e6, domain="fast")
-    sim.add_clock(1/100e6, phase=(1/100e6)/4, domain="fast_90")
+    def do_strobe():
+        yield strobe.eq(1)
+        yield
+        yield strobe.eq(0)
+        yield
+
+    def reader():
+        for i in range(5):
+            yield from do_strobe()
+            yield from pause(3)
+
+    sim.add_clock(1/12e6)
+    sim.add_clock(1/100e6, domain="clk100")
+    sim.add_clock(1/500e6, domain="input")
+    sim.add_clock(1/250e6, domain="fast")
+    sim.add_clock(1/250e6, phase=(1/250e6)/4, domain="fast_90")
     sim.add_sync_process(proc)
+    sim.add_sync_process(reader)
     sim.add_sync_process(time, domain="fast")
     sim.add_sync_process(input, domain="input")
     with sim.write_vcd("tdc_fifo_hit.vcd", "tdc_fifo_hit_orig.gtkw"):

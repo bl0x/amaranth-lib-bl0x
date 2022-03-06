@@ -37,9 +37,6 @@ if __name__ == '__main__':
     dut = Counter()
     sim = Simulator(dut)
 
-    def tick():
-        yield Tick()
-
     def strobe():
         yield dut.input.eq(1)
         yield
