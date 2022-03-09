@@ -64,12 +64,14 @@ class TdcChannel(Elaboratable):
             with m.State("WAIT_STROBE"):
                 m.d.sync += self.strobe2.eq(0)
                 with m.If(self.strobe == 1):
+                    m.next = "WAIT_FIFO"
+            with m.State("WAIT_FIFO"):
+                with m.If((fifo.r_rdy) & (fifo.r_level > 1)):
                     m.d.sync += self.strobe2.eq(1)
                     m.next = "GO1"
             with m.State("GO1"):
                 m.d.sync += self.strobe2.eq(0)
-                with m.If((fifo.r_rdy)):
-                    m.next = "GO2"
+                m.next = "GO2"
             with m.State("GO2"):
                 m.d.sync += self.strobe2.eq(1)
                 m.next = "GO3"
