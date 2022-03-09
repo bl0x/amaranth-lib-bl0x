@@ -68,7 +68,8 @@ class TdcChannel(Elaboratable):
                     m.next = "GO1"
             with m.State("GO1"):
                 m.d.sync += self.strobe2.eq(0)
-                m.next = "GO2"
+                with m.If((fifo.r_rdy)):
+                    m.next = "GO2"
             with m.State("GO2"):
                 m.d.sync += self.strobe2.eq(1)
                 m.next = "GO3"
