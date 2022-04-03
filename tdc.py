@@ -9,12 +9,13 @@ from generic.oversampling_input import OversamplingInput
 # |    37   |   36   | 35 4 | 3    0 |
 
 class Tdc(Elaboratable):
-    def __init__(self, domain="fast", domain_90="fast_90"):
+    def __init__(self, name, domain="fast", domain_90="fast_90"):
         # in
         self.clk_0 = ClockSignal(domain)
         self.clk_90 = ClockSignal(domain_90)
         self.input = Signal()
         self.time = Signal(32)
+        self.name = name
         # out
         self.output = Signal(38)
         self.rdy = Signal()
@@ -50,7 +51,7 @@ class Tdc(Elaboratable):
 
     def elaborate(self, platform):
 
-        os_in = OversamplingInput()
+        os_in = OversamplingInput(self.name)
 
         m = Module()
 
@@ -77,7 +78,7 @@ class Tdc(Elaboratable):
         return m
 
 if __name__ == "__main__":
-    dut = Tdc()
+    dut = Tdc("test")
     i0 = Signal()
     t = Signal(32)
     out = Signal(38)

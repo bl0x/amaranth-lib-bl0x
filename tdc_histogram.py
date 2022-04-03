@@ -7,8 +7,9 @@ from tdc_channel import TdcChannel
 from edge_detect import EdgeDetector
 
 class TdcHistogram(Elaboratable):
-    def __init__(self, fast_domain="fast", fast_90_domain="fast_90",
+    def __init__(self, name, fast_domain="fast", fast_90_domain="fast_90",
             tdc_domain="tdc", bins=10, bits=8):
+        self.name = name
         self.bins = bins
         self.bits = bits
         self.fast_domain = fast_domain
@@ -43,7 +44,7 @@ class TdcHistogram(Elaboratable):
     def elaborate(self, platform):
 
         histogram = Histogram(bins=self.bins, bits=self.bits)
-        tdc = DomainRenamer(self.tdc_domain)(TdcChannel())
+        tdc = DomainRenamer(self.tdc_domain)(TdcChannel(self.name))
 
         we_tdc = Signal()
         incr_tdc = Signal()

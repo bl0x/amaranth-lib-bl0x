@@ -19,11 +19,12 @@ from tdc_to_hit import TdcToHit
 
 class TdcChannel(Elaboratable):
 
-    def __init__(self):
+    def __init__(self, name):
         # in
         self.input = Signal()
         self.time = Signal(32)
         self.strobe = Signal()
+        self.name = name
         # out
         self.output = Signal(32)
         self.counter = Signal(16)
@@ -36,7 +37,7 @@ class TdcChannel(Elaboratable):
 
     def elaborate(self, platform):
 
-        tdc = Tdc()
+        tdc = Tdc(self.name)
         fifo = AsyncFIFO(width=38, depth=16, w_domain="fast", r_domain="sync")
         tdc2hit = TdcToHit()
 
@@ -91,7 +92,7 @@ class TdcChannel(Elaboratable):
         return m
 
 if __name__ == "__main__":
-    dut = DomainRenamer("clk100")(TdcChannel())
+    dut = DomainRenamer("clk100")(TdcChannel("test"))
     i0 = Signal()
     t = Signal(32)
     out = Signal(32)

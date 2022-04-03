@@ -2,11 +2,12 @@ from amaranth import *
 from amaranth.sim import *
 
 class OversamplingInput(Elaboratable):
-    def __init__(self):
+    def __init__(self, name):
         self.clk_0 = Signal()
         self.clk_90 = Signal()
         self.input = Signal(attrs={"MAXSKEW":"0.5 ns"})
         self.data4 = Signal(4)
+        self.name = name
 
         self.ports = [
                 self.clk_0,
@@ -24,21 +25,26 @@ class OversamplingInput(Elaboratable):
 
         m = Module()
 
+        domain_p0 =  self.name+"_p_0"
+        domain_p90 = self.name+"_p_90"
+        domain_n0 =  self.name+"_n_0"
+        domain_n90 = self.name+"_n_90"
+
         m.domains += [
-                ClockDomain("p_0"),
-                ClockDomain("p_90"),
-                ClockDomain("n_0"),
-                ClockDomain("n_90")
+                ClockDomain(domain_p0),
+                ClockDomain(domain_p90),
+                ClockDomain(domain_n0),
+                ClockDomain(domain_n90)
                 ]
 
         m.d.comb += [
-                ClockSignal("p_0").eq(self.clk_0),
-                ClockSignal("p_90").eq(self.clk_90),
-                ClockSignal("n_0").eq(~self.clk_0),
-                ClockSignal("n_90").eq(~self.clk_90),
+                ClockSignal(domain_p0).eq(self.clk_0),
+                ClockSignal(domain_p90).eq(self.clk_90),
+                ClockSignal(domain_n0).eq(~self.clk_0),
+                ClockSignal(domain_n90).eq(~self.clk_90),
                 ]
 
-        m.d.p_0 += [
+        m.d[domain_p0] += [
                 a[0].eq(self.input),
                 a[1].eq(a[0]),
                 a[2].eq(a[1]),
@@ -54,18 +60,18 @@ class OversamplingInput(Elaboratable):
                 d[3].eq(d[2])
                 ]
 
-        m.d.p_90 += [
+        m.d[domain_p90] += [
                 b[0].eq(self.input),
                 c[1].eq(c[0]),
                 d[2].eq(d[1])
                 ]
 
-        m.d.n_0 += [
+        m.d[domain_n0] += [
                 c[0].eq(self.input),
                 d[1].eq(d[0])
                 ]
 
-        m.d.n_90 += [
+        m.d[domain_n90] += [
                 d[0].eq(self.input)
                 ]
 
@@ -76,7 +82,7 @@ class OversamplingInput(Elaboratable):
         return m
 
 if __name__ == "__main__":
-    dut = OversamplingInput()
+    dut = OversamplingInput("test")
     clk = Signal()
     clk_90 = Signal()
     i0 = Signal()
