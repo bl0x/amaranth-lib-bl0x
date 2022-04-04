@@ -23,8 +23,8 @@ class TdcHistogram(Elaboratable):
         self.counter = Signal(16)
 
         # Histogram
-        self.index_r = Signal()
-        self.index_w = Signal()
+        self.index_r = Signal(range(1, self.bins))
+        self.index_w = Signal(range(1, self.bins))
         self.read = Signal()
         self.write = Signal()
         self.increment = Signal()
@@ -137,5 +137,16 @@ class TdcHistogram(Elaboratable):
                 self.write.eq(we_tdc),
                 self.increment.eq(incr_tdc_sync)
             ]
+
+        # connect to histogram
+        m.d.comb += [
+            histogram.index_r.eq(self.index_r),
+            histogram.index_w.eq(self.index_w),
+            histogram.data_w.eq(self.data_w),
+            self.data_r.eq(histogram.data_r),
+            histogram.increment.eq(self.increment),
+            histogram.write.eq(self.write),
+            histogram.read.eq(self.read)
+        ]
 
         return m
