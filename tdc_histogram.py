@@ -33,6 +33,7 @@ class TdcHistogram(Elaboratable):
 
         # Debug outputs
         self.debug_tdc_rdy = Signal()
+        self.debug_fifo_rdy = Signal()
         self.debug_hit_rdy = Signal()
 
     def connect(self, signal=None, time=None, counter=None):
@@ -98,6 +99,7 @@ class TdcHistogram(Elaboratable):
             tdc_time.eq(tdc.output[16:32]),
             tdc_value.eq(tdc.output[0:16]),
             self.debug_tdc_rdy.eq(tdc.debug_tdc_rdy),
+            self.debug_fifo_rdy.eq(tdc.debug_fifo_rdy),
             self.debug_hit_rdy.eq(tdc.debug_hit_rdy)
         ]
 
