@@ -35,10 +35,11 @@ class TdcHistogram(Elaboratable):
         self.debug_tdc_rdy = Signal()
         self.debug_hit_rdy = Signal()
 
-    def connect(self, signal=None, time=None):
+    def connect(self, signal=None, time=None, counter=None):
         return [
             self.time.eq(time),
-            self.input.eq(signal)
+            self.input.eq(signal),
+            counter.eq(self.counter)
         ]
 
     def elaborate(self, platform):
