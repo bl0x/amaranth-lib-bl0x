@@ -29,10 +29,11 @@ class TdcChannel(Elaboratable):
         self.output = Signal(32)
         self.counter = Signal(16)
 
-        self.debug_tdc_rdy = Signal()
-        self.debug_fifo_rdy = Signal()
-        self.debug_hit_busy = Signal()
-        self.debug_hit_rdy = Signal()
+        self.tdc_rdy = Signal()
+        self.fifo_rdy = Signal()
+        self.hit_busy = Signal()
+        self.hit_rdy = Signal()
+        self.hit_rdy_pulse = Signal()
         self.strobe2 = Signal()
 
     def elaborate(self, platform):
@@ -55,17 +56,18 @@ class TdcChannel(Elaboratable):
         ]
 
         m.d.comb += [
-            self.debug_tdc_rdy.eq(tdc.rdy),
-            self.debug_fifo_rdy.eq(fifo.r_rdy),
-            self.debug_hit_busy.eq(tdc2hit.busy),
-            self.debug_hit_rdy.eq(tdc2hit.rdy)
+            self.tdc_rdy.eq(tdc.rdy),
+            self.fifo_rdy.eq(fifo.r_rdy),
+            self.hit_busy.eq(tdc2hit.busy),
+            self.hit_rdy.eq(tdc2hit.rdy),
+            self.hit_rdy_pulse.eq(tdc2hit.rdy_pulse)
         ]
 
-        with m.FSM(reset="WAIT_STROBE") as strobe_fsm:
-            with m.State("WAIT_STROBE"):
+        with m.FSM(reset="RESET") as strobe_fsm:
+            with m.State("RESET"):
                 m.d.sync += self.strobe2.eq(0)
-                with m.If(self.strobe == 1):
-                    m.next = "WAIT_FIFO"
+                #with m.If(self.strobe == 1):
+                m.next = "WAIT_FIFO"
             with m.State("WAIT_FIFO"):
                 with m.If((fifo.r_rdy) & (fifo.r_level > 1)):
                     m.d.sync += self.strobe2.eq(1)
@@ -78,7 +80,7 @@ class TdcChannel(Elaboratable):
                 m.next = "GO3"
             with m.State("GO3"):
                 m.d.sync += self.strobe2.eq(0)
-                m.next = "WAIT_STROBE"
+                m.next = "RESET"
 
         with m.If((fifo.r_rdy == 1) & (tdc2hit.busy != 1) & (self.strobe2 == 1)):
             m.d.sync += fifo.r_en.eq(~fifo.r_en)

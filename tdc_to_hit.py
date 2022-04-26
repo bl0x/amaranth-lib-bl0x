@@ -49,6 +49,7 @@ class TdcToHit(Elaboratable):
         # out
         self.output = Signal(32)
         self.rdy = Signal()
+        self.rdy_pulse = Signal()
         self.counter_rise = Signal(16)
         self.counter_fall = Signal(16)
 
@@ -99,6 +100,7 @@ class TdcToHit(Elaboratable):
                 m.d.sync += [
                     new_signal.eq(0),
                     self.rdy.eq(0),
+                    self.rdy_pulse.eq(0),
                     self.busy.eq(0)
                 ]
                 m.next = "WAIT_START"
@@ -128,23 +130,27 @@ class TdcToHit(Elaboratable):
                             end.eq(self.input[0:36]),
                             fine_end.eq(s2v.value),
                             diff.eq(self.input[4:4+32] - start),
-                            self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
-                        m.next = "WAIT_STROBE"
+                        m.next = "READY_PULSE"
                 with m.Elif(self.polarity == FALLING_IS_START):
                     with m.If(self.is_rising()):
                         m.d.sync += [
                             end.eq(self.input[0:36]),
                             fine_end.eq(s2v.value),
                             diff.eq(self.input[4:4+32] - start),
-                            self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
-                        m.next = "WAIT_STROBE"
-
+                        m.next = "READY_PULSE"
+            with m.State("READY_PULSE"):
+                m.d.sync += [
+                    self.busy.eq(0),
+                    self.rdy.eq(1),
+                    self.rdy_pulse.eq(1)
+                ]
+                m.next = "RESET"
             with m.State("WAIT_STROBE"):
-                m.d.sync += self.busy.eq(0)
+                m.d.sync += self.rdy_pulse.eq(0)
                 with m.If(self.strobe == 1):
                     m.next = "RESET"
 
