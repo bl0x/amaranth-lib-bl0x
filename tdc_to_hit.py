@@ -151,7 +151,9 @@ class TdcToHit(Elaboratable):
         m.d.comb += [
             diff2.eq(
                 Mux(diff < 0x3fff, (diff << 2) + fine_end - fine_start, 0xffff)
-            ),
+            )
+        ]
+        m.d.sync += [
             self.output.eq(Cat(diff2, time))
         ]
 
