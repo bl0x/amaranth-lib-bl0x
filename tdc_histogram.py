@@ -61,7 +61,7 @@ class TdcHistogram(Elaboratable):
         strobe_tdc = Signal()
         strobe_start = Signal()
 
-        tdc_time = Signal(16)
+        tdc_time = Signal(16) # Unused as of now
         tdc_value = Signal(16)
 
         increment_sync   = PulseSynchronizer(self.tdc_domain, "sync")
@@ -124,7 +124,10 @@ class TdcHistogram(Elaboratable):
         with m.Else():
             m.d.sync += strobe.eq(0)
 
-        m.d.comb += addr_tdc.eq(Mux(tdc_value > 999, 999, tdc_value))
+        addr_tdc_max = self.bins - 1
+        print(f"Maximum tdc histogram address = {addr_tdc_max}")
+        m.d.sync += addr_tdc.eq(Mux(tdc_value > addr_tdc_max,
+            addr_tdc_max, tdc_value))
 
         m.d.comb += [
             incr_tdc.eq((tdc_value < 0xffff)),
