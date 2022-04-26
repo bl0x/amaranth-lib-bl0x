@@ -61,7 +61,7 @@ class TdcToHit(Elaboratable):
     def elaborate(self, platform):
 
         prev = Signal(32)
-        start = Signal(36)
+        start = Signal(32)
         fine_start = Signal(2)
         fine_end = Signal(2)
         end = Signal(36)
@@ -107,7 +107,7 @@ class TdcToHit(Elaboratable):
                 with m.If(self.polarity == RISING_IS_START):
                     with m.If(self.is_rising()):
                         m.d.sync += [
-                            start.eq(self.input[0:36]),
+                            start.eq(self.input[4:4+32]),
                             fine_start.eq(s2v.value),
                             time.eq(self.input[4:4+16])
                         ]
@@ -115,7 +115,7 @@ class TdcToHit(Elaboratable):
                 with m.Elif(self.polarity == FALLING_IS_START):
                     with m.If(self.is_falling()):
                         m.d.sync += [
-                            start.eq(self.input[0:36]),
+                            start.eq(self.input[4:4+32]),
                             fine_start.eq(s2v.value),
                             time.eq(self.input[4:4+16])
                         ]
@@ -127,7 +127,7 @@ class TdcToHit(Elaboratable):
                         m.d.sync += [
                             end.eq(self.input[0:36]),
                             fine_end.eq(s2v.value),
-                            diff.eq(self.input[4:4+32] - start[4:4+32]),
+                            diff.eq(self.input[4:4+32] - start),
                             self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
@@ -137,7 +137,7 @@ class TdcToHit(Elaboratable):
                         m.d.sync += [
                             end.eq(self.input[0:36]),
                             fine_end.eq(s2v.value),
-                            diff.eq(self.input[4:4+32] - start[4:4+32]),
+                            diff.eq(self.input[4:4+32] - start),
                             self.rdy.eq(1),
                             self.busy.eq(1)
                         ]
