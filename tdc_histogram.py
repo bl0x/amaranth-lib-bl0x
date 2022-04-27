@@ -88,7 +88,8 @@ class TdcHistogram(Elaboratable):
         m.d.comb += [
             fifo.w_data.eq(tdc.output),
             fifo.w_en.eq(tdc.hit_rdy_pulse),
-            tdc_data.eq(fifo.r_data),
+            fifo.r_en.eq(fifo.r_rdy),
+            tdc_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
             tdc_value.eq(tdc_data[0:15]),
             tdc_time.eq(tdc_data[16:31])
         ]
@@ -143,9 +144,8 @@ class TdcHistogram(Elaboratable):
             addr_tdc_max, tdc_value))
 
         # Write to histogram and remove from fifo
-        m.d.sync += [
-            incr_tdc.eq(fifo.r_rdy),
-            fifo.r_en.eq(fifo.r_rdy)
+        m.d.comb += [
+            incr_tdc.eq(fifo.r_rdy)
         ]
 
         #m.d.comb += [

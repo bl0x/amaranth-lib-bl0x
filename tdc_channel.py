@@ -44,12 +44,15 @@ class TdcChannel(Elaboratable):
 
         m = Module()
 
+        fifo_data = Signal(38)
+
         m.d.comb += [
             tdc.input.eq(self.input),
             tdc.time.eq(self.time),
             fifo.w_data.eq(tdc.output),
             fifo.w_en.eq(tdc.rdy),
-            tdc2hit.input.eq(fifo.r_data),
+            fifo_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
+            tdc2hit.input.eq(fifo_data),
             tdc2hit.strobe.eq(self.strobe),
             self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0xffffffff)),
             self.counter.eq(tdc2hit.counter_rise)
