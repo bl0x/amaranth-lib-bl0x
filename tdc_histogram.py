@@ -9,10 +9,11 @@ from edge_detect import EdgeDetector
 
 class TdcHistogram(Elaboratable):
     def __init__(self, name, fast_domain="fast", fast_90_domain="fast_90",
-            tdc_domain="tdc", bins=10, bits=8):
+            tdc_domain="tdc", bins=10, bits=8, shift=0):
         self.name = name
         self.bins = bins
         self.bits = bits
+        self.shift = shift
         self.fast_domain = fast_domain
         self.fast_90_domain = fast_90_domain
         self.tdc_domain = tdc_domain
@@ -90,7 +91,7 @@ class TdcHistogram(Elaboratable):
             fifo.w_en.eq(tdc.hit_rdy_pulse),
             fifo.r_en.eq(fifo.r_rdy),
             tdc_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
-            tdc_value.eq(tdc_data[0:15]),
+            tdc_value.eq(tdc_data[0+self.shift:15]),
             tdc_time.eq(tdc_data[16:31])
         ]
 
