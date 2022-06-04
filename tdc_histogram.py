@@ -9,11 +9,10 @@ from edge_detect import EdgeDetector
 
 class TdcHistogram(Elaboratable):
     def __init__(self, name, fast_domain="fast", fast_90_domain="fast_90",
-            tdc_domain="tdc", bins=10, bits=8, shift=0):
+            tdc_domain="tdc", bins=10, bits=8):
         self.name = name
         self.bins = bins
         self.bits = bits
-        self.shift = shift
         self.fast_domain = fast_domain
         self.fast_90_domain = fast_90_domain
         self.tdc_domain = tdc_domain
@@ -21,6 +20,9 @@ class TdcHistogram(Elaboratable):
         # TDC
         self.time = Signal(32)
         self.input = Signal()
+
+        # Rebinning
+        self.shift = Signal(range(0, 15))
 
         self.counter = Signal(16)
 
@@ -38,11 +40,12 @@ class TdcHistogram(Elaboratable):
         self.debug_fifo_rdy = Signal()
         self.debug_hit_rdy = Signal()
 
-    def connect(self, signal=None, time=None, counter=None):
+    def connect(self, signal=None, time=None, counter=None, shift=None):
         return [
             self.time.eq(time),
             self.input.eq(signal),
-            counter.eq(self.counter)
+            counter.eq(self.counter),
+            self.shift.eq(shift)
         ]
 
     def elaborate(self, platform):
@@ -91,7 +94,7 @@ class TdcHistogram(Elaboratable):
             fifo.w_en.eq(tdc.hit_rdy_pulse),
             fifo.r_en.eq(fifo.r_rdy),
             tdc_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
-            tdc_value.eq(tdc_data[0+self.shift:15]),
+            tdc_value.eq(tdc_data[0:15] >> self.shift),
             tdc_time.eq(tdc_data[16:31])
         ]
 
