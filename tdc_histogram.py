@@ -70,6 +70,7 @@ class TdcHistogram(Elaboratable):
         incr_start = Signal()
         busy = Signal()
         addr_tdc = Signal(16)
+        addr_clear = Signal(16)
 
         strobe = Signal()
         strobe_tdc = Signal()
@@ -156,8 +157,13 @@ class TdcHistogram(Elaboratable):
             m.d.comb += addr_tdc.eq(Mux(tdc_value > addr_tdc_max,
                 addr_tdc_max, tdc_value))
         with m.Else():
-            m.d.comb += addr_tdc.eq(Mux(addr_tdc >= addr_tdc_max,
-                0, addr_tdc + 1))
+            m.d.comb += addr_tdc.eq(addr_clear)
+
+        with m.If(self.clear == 1):
+            with m.If(addr_clear == addr_tdc_max):
+                m.d.sync += addr_clear.eq(0)
+            with m.Else():
+                m.d.sync += addr_clear.eq(addr_clear + 1)
 
         # Write to histogram and remove from fifo
         m.d.comb += [
