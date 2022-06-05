@@ -40,12 +40,19 @@ class TdcHistogram(Elaboratable):
         self.debug_fifo_rdy = Signal()
         self.debug_hit_rdy = Signal()
 
-    def connect(self, signal=None, time=None, counter=None, shift=None):
+        # Control signals
+        self.go = Signal()
+        self.clear = Signal()
+
+    def connect(self, signal=None, time=None, counter=None, shift=None,
+            go=None, clear=None):
         return [
             self.time.eq(time),
             self.input.eq(signal),
             counter.eq(self.counter),
-            self.shift.eq(shift)
+            self.shift.eq(shift),
+            self.go.eq(go),
+            self.clear.eq(clear)
         ]
 
     def elaborate(self, platform):
@@ -144,8 +151,13 @@ class TdcHistogram(Elaboratable):
 
         addr_tdc_max = self.bins - 1
         print(f"Maximum tdc histogram address = {addr_tdc_max}")
-        m.d.comb += addr_tdc.eq(Mux(tdc_value > addr_tdc_max,
-            addr_tdc_max, tdc_value))
+
+        with m.If(self.clear == 0):
+            m.d.comb += addr_tdc.eq(Mux(tdc_value > addr_tdc_max,
+                addr_tdc_max, tdc_value))
+        with m.Else():
+            m.d.comb += addr_tdc.eq(Mux(addr_tdc >= addr_tdc_max,
+                0, addr_tdc + 1))
 
         # Write to histogram and remove from fifo
         m.d.comb += [
@@ -159,12 +171,19 @@ class TdcHistogram(Elaboratable):
         #]
 
         # Writing to histogram
-        with m.If(incr_tdc | we_tdc):
+        with m.If((incr_tdc | we_tdc) & (self.go == 1)):
             m.d.comb += [
                 self.index_w.eq(addr_tdc),
                 self.write.eq(we_tdc),
                 self.increment.eq(incr_tdc)
             ]
+        with m.Elif((self.go == 0) & (self.clear == 1)):
+            m.d.comb += [
+                self.index_w.eq(addr_tdc),
+                self.write.eq(we_tdc),
+                self.data_w.eq(0)
+            ]
+
 
         # connect to histogram
         m.d.comb += [
