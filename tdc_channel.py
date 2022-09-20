@@ -5,6 +5,8 @@ from amaranth.lib.cdc import PulseSynchronizer
 
 from tdc import Tdc
 from tdc_to_hit import TdcToHit
+from tdc_simple import TdcSimple
+from tdc_to_hit_simple import TdcToHitSimple
 
 # This implements a single channel TDC (time-to-digital converter).
 # The time resolution is determined by the time scale of the "fast" clocks.
@@ -17,10 +19,14 @@ from tdc_to_hit import TdcToHit
 #   output: 16 bit timestamp & 16 bit measured time
 #   counter: number of rising edges of input signal seen
 
+MODE_FAST = "fast"
+MODE_SIMPLE = "simple"
+
 class TdcChannel(Elaboratable):
 
-    def __init__(self, name):
+    def __init__(self, name, mode=MODE_FAST):
         # in
+        self.enable = Signal()
         self.input = Signal()
         self.time = Signal(32)
         self.strobe = Signal()
@@ -28,6 +34,8 @@ class TdcChannel(Elaboratable):
         # out
         self.output = Signal(32)
         self.counter = Signal(16)
+
+        self.mode = mode
 
         self.tdc_rdy = Signal()
         self.fifo_rdy = Signal()
@@ -38,17 +46,27 @@ class TdcChannel(Elaboratable):
 
     def elaborate(self, platform):
 
-        tdc = Tdc(self.name)
-        fifo = AsyncFIFO(width=38, depth=16, w_domain="fast", r_domain="sync")
-        tdc2hit = TdcToHit()
+
+        if self.mode == "fast":
+            fifo_width = 32 + 2 + 4
+            tdc = Tdc(self.name)
+            tdc2hit = TdcToHit()
+        else:
+            fifo_width = 32 + 2
+            tdc = TdcSimple(self.name)
+            tdc2hit = TdcToHitSimple()
+
+        fifo = AsyncFIFO(width=fifo_width, depth=16, w_domain="fast",
+                         r_domain="sync")
 
         m = Module()
 
-        fifo_data = Signal(38)
+        fifo_data = Signal(fifo_width)
 
         m.d.comb += [
             tdc.input.eq(self.input),
             tdc.time.eq(self.time),
+            tdc.enable.eq(self.enable),
             fifo.w_data.eq(tdc.output),
             fifo.w_en.eq(tdc.rdy),
             fifo_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
@@ -97,7 +115,9 @@ class TdcChannel(Elaboratable):
         return m
 
 if __name__ == "__main__":
-    dut = DomainRenamer("clk100")(TdcChannel("test"))
+    mode = MODE_SIMPLE
+
+    dut = DomainRenamer("clk100")(TdcChannel("test", mode))
     i0 = Signal()
     t = Signal(32)
     out = Signal(32)
@@ -148,6 +168,7 @@ if __name__ == "__main__":
             yield
 
     def input():
+        yield dut.enable.eq(1)
         for i in range(5):
             yield from pulse(i)
             yield from pause(5)
@@ -172,7 +193,8 @@ if __name__ == "__main__":
     sim.add_clock(1/100e6, domain="clk100")
     sim.add_clock(1/500e6, domain="input")
     sim.add_clock(1/250e6, domain="fast")
-    sim.add_clock(1/250e6, phase=(1/250e6)/4, domain="fast_90")
+    if mode == MODE_FAST:
+        sim.add_clock(1/250e6, phase=(1/250e6)/4, domain="fast_90")
     sim.add_sync_process(proc)
     sim.add_sync_process(reader)
     sim.add_sync_process(time, domain="fast")
