@@ -122,6 +122,7 @@ class TdcHistogram(Elaboratable):
             tdc.strobe.eq(strobe_tdc),
             tdc.input.eq(self.input),
             tdc.time.eq(self.time),
+            tdc.enable.eq(1),
             #tdc_time.eq(tdc.output[16:32]),
             #tdc_value.eq(tdc.output[0:16]),
             self.debug_tdc_rdy.eq(tdc.tdc_rdy),
