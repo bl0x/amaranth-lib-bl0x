@@ -1,0 +1,3 @@
+*.vcd
+*.gtkw
+__pycache__
