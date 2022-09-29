@@ -14,7 +14,7 @@ class SerialEncoder(Elaboratable):
     def __init__(self, bufsize=16):
         self.bufsize = bufsize
 
-        self.data = Signal(unsigned(16))
+        self.data = Signal(unsigned(32))
         self.write = Signal()
         self.trg = Signal()
         self.rdy = Signal()
@@ -33,8 +33,8 @@ class SerialEncoder(Elaboratable):
         ]
 
     def elaborate(self, platform):
-        bcd = BinToBcd(bits=16)
-        buffer = Array([Signal(unsigned(16)) for _ in range(self.bufsize)])
+        bcd = BinToBcd(bits=32)
+        buffer = Array([Signal(unsigned(32)) for _ in range(self.bufsize)])
         size = Signal(unsigned(8))
 
         m = Module()
@@ -43,7 +43,7 @@ class SerialEncoder(Elaboratable):
 
         bytes_to_encode = Signal(unsigned(8))
         pos = Signal(8)
-        bcd_pos = Signal(unsigned(4))
+        bcd_pos = Signal(unsigned(5))
         seen_nonzero = Signal()
 
         with m.FSM(reset="IDLE"):
@@ -87,8 +87,8 @@ class SerialEncoder(Elaboratable):
                     m.next = "SEND_BCD"
 
             with m.State("SEND_BCD"):
-                with m.If(bcd_pos < 6):
-                    digit = bcd.bcd.word_select(5 - bcd_pos, 4)
+                with m.If(bcd_pos < 11):
+                    digit = bcd.bcd.word_select(10 - bcd_pos, 4)
                     m.d.sync += bcd_pos.eq(bcd_pos + 1)
                     with m.If((bcd_pos == bcd.digits) |
                         (digit != 0) | (seen_nonzero == 1)):
@@ -218,7 +218,9 @@ if __name__ == '__main__':
         yield from write(0x0a)
         yield from write(0xfe)
         yield from write(0x1337)
-        yield from transmit(24)
+        yield from write(0x133713)
+        yield from write(0x13371337)
+        yield from transmit(40)
         for i in range(200):
             yield
 
@@ -230,5 +232,5 @@ if __name__ == '__main__':
 
     sim.add_clock(1/12e6)
     sim.add_sync_process(proc)
-    with sim.write_vcd('serial_enc.vcd', 'serial_enc.gtkw', traces=dut.ports):
+    with sim.write_vcd('serial_enc.vcd', 'serial_enc_orig.gtkw', traces=dut.ports):
         sim.run()

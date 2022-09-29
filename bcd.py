@@ -27,7 +27,7 @@ class BinToBcd(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        iteration = Signal(unsigned(4))
+        iteration = Signal(unsigned(5))
 
         with m.FSM(reset="IDLE"):
             with m.State("IDLE"):
