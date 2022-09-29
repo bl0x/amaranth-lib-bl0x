@@ -10,11 +10,15 @@ class Counter(Elaboratable):
         self.bits = bits
         self.input = Signal()
         self.count = Signal(unsigned(bits))
+        self.count_latched = Signal(unsigned(bits))
+        self.latch = Signal()
 
         self.ports = [
-                self.input,
-                self.count
-                ]
+            self.input,
+            self.count,
+            self.count_latched,
+            self.latch
+        ]
 
     def elaborate(self, platform):
 
@@ -29,6 +33,9 @@ class Counter(Elaboratable):
         if self.falling == True:
             with m.If(ed.fell == 1):
                 m.d.sync += self.count.eq(self.count + 1)
+
+        with m.If(self.latch == 1):
+            m.d.sync += self.count_latched.eq(self.count)
 
         m.submodules.ed = ed
         return m
@@ -61,6 +68,13 @@ if __name__ == '__main__':
             yield from strobe()
 
         assert((yield dut.count) == 21)
+        assert((yield dut.count_latched) == 0)
+
+        yield dut.latch.eq(1)
+        yield
+        yield dut.latch.eq(0)
+        yield
+        assert((yield dut.count_latched) == 21)
 
     sim.add_clock(1/12e6)
     sim.add_sync_process(proc)
