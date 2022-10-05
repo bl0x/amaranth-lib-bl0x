@@ -24,7 +24,7 @@ MODE_SIMPLE = "simple"
 
 class TdcChannel(Elaboratable):
 
-    def __init__(self, name, mode=MODE_FAST):
+    def __init__(self, name, idx=0x0, mode=MODE_FAST):
         # in
         self.enable = Signal()
         self.input = Signal()
@@ -36,6 +36,7 @@ class TdcChannel(Elaboratable):
         self.counter = Signal(16)
 
         self.mode = mode
+        self.idx = Signal(8, reset=idx)
 
         self.tdc_rdy = Signal()
         self.fifo_rdy = Signal()
