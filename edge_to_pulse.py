@@ -4,8 +4,9 @@ from amaranth.sim import *
 from edge_detect import EdgeDetector
 
 class EdgeToPulse(Elaboratable):
-    def __init__(self, width=1):
-        self.width = width
+    def __init__(self, bits=16):
+        self.width = Signal(bits)
+        self.bits = bits
 
         self.input = Signal()
         self.output = Signal()
@@ -17,7 +18,7 @@ class EdgeToPulse(Elaboratable):
 
     def elaborate(self, platform):
         ed = EdgeDetector()
-        counter = Signal(range(0, self.width))
+        counter = Signal(self.bits)
 
         m = Module()
 

@@ -4,19 +4,22 @@ from amaranth.sim import *
 from edge_to_pulse import EdgeToPulse
 
 class Blinker(Elaboratable):
-    def __init__(self, width=10000):
+    def __init__(self, width=10000, bits=16):
         self.go = Signal()
         self.counter = Signal(unsigned(8))
         self.output = Signal()
-        self.width = width
+        self.width = Signal(bits, reset=width)
 
     def elaborate(self, platform):
-        ed = EdgeToPulse(width=self.width)
+        ed = EdgeToPulse()
         count = Signal(unsigned(8))
 
         m = Module()
 
-        m.d.comb += self.output.eq(ed.output)
+        m.d.comb += [
+            ed.width.eq(self.width),
+            self.output.eq(ed.output)
+        ]
 
         with m.If((self.go == 1)):
             m.d.sync += [
