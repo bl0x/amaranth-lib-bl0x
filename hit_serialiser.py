@@ -37,7 +37,7 @@ class HitSerialiser(Elaboratable):
         with m.FSM(reset="IDLE") as fsm:
 
             m.d.comb += self.tx_trg.eq(fsm.ongoing("ENCODE"))
-            m.d.comb += self.rdy.eq(fsm.ongoing("DONE"))
+            m.d.comb += self.rdy.eq(fsm.ongoing("DONE") | fsm.ongoing("IDLE"))
 
             with m.State("IDLE"):
                 m.d.sync += pos.eq(0)
