@@ -11,14 +11,14 @@ from amaranth.sim import *
 # byte 5: 0xff
 
 class HitSerialiser(Elaboratable):
-    def __init__(self, idx):
+    def __init__(self):
         self.fifo_rdy = Signal()
         self.fifo_r_data = Signal(32)
         self.rdy = Signal()
         self.tx = Signal(unsigned(8))
         self.tx_rdy = Signal()
         self.tx_trg = Signal()
-        self.idx = Signal(8, reset=idx)
+        self.idx = Signal(8)
 
         self.ports = [
             self.fifo_rdy,
@@ -77,7 +77,7 @@ class HitSerialiser(Elaboratable):
         return m
 
 if __name__ == '__main__':
-    dut = HitSerialiser(idx=0xab)
+    dut = HitSerialiser()
 
     sim = Simulator(dut)
 
@@ -114,9 +114,11 @@ if __name__ == '__main__':
             yield
 
     def check_write():
+        yield dut.idx.eq(0xBA)
         yield from write(0x4)
         yield from write(0x0a)
         yield from write(0xfe)
+        yield dut.idx.eq(0xCD)
         yield from write(0x1337)
         yield from write(0x133713)
         yield from write(0x13371337)

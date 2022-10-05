@@ -46,7 +46,6 @@ class TdcChannel(Elaboratable):
 
     def elaborate(self, platform):
 
-
         if self.mode == "fast":
             fifo_width = 32 + 2 + 4
             tdc = Tdc(self.name)
