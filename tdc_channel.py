@@ -24,19 +24,20 @@ MODE_SIMPLE = "simple"
 
 class TdcChannel(Elaboratable):
 
-    def __init__(self, name, idx=0x0, mode=MODE_FAST):
+    def __init__(self, name, idx=0x0, mode=MODE_FAST, bits_time=16):
         # in
         self.enable = Signal()
         self.input = Signal()
-        self.time = Signal(32)
+        self.time = Signal(bits_time)
         self.strobe = Signal()
         self.name = name
         # out
-        self.output = Signal(32)
+        self.output = Signal(48)
         self.counter = Signal(16)
 
         self.mode = mode
         self.idx = Signal(8, reset=idx)
+        self.bits_time = bits_time
 
         self.tdc_rdy = Signal()
         self.fifo_rdy = Signal()
@@ -48,12 +49,12 @@ class TdcChannel(Elaboratable):
     def elaborate(self, platform):
 
         if self.mode == "fast":
-            fifo_width = 32 + 2 + 4
+            fifo_width = 16 + self.bits_time + 2 + 4
             tdc = Tdc(self.name)
             tdc2hit = TdcToHit()
         else:
-            fifo_width = 32 + 2
-            tdc = TdcSimple(self.name)
+            fifo_width = 16 + self.bits_time + 2
+            tdc = TdcSimple(self.name, bits_time=self.bits_time)
             tdc2hit = TdcToHitSimple()
 
         fifo = AsyncFIFO(width=fifo_width, depth=16, w_domain="fast",
@@ -116,11 +117,13 @@ class TdcChannel(Elaboratable):
 
 if __name__ == "__main__":
     mode = MODE_SIMPLE
+    idx = 1
+    bits_time = 32
 
-    dut = DomainRenamer("clk100")(TdcChannel("test", mode))
+    dut = DomainRenamer("clk100")(TdcChannel("test", idx, mode, bits_time))
     i0 = Signal()
     t = Signal(32)
-    out = Signal(32)
+    out = Signal(48)
     counter = Signal(16)
     strobe = Signal()
     strobe_100 = Signal()

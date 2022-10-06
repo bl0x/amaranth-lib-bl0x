@@ -16,7 +16,7 @@ class TdcSimple(Elaboratable):
         self.name = name
 
         # out
-        self.output = Signal(34)
+        self.output = Signal(32 + 2)
         self.rdy = Signal()
 
         self._domain = domain

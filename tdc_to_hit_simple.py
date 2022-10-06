@@ -16,14 +16,16 @@ FALLING_IS_START = 1
 
 class TdcToHitSimple(Elaboratable):
 
-    def __init__(self):
+    def __init__(self, bits_time=16):
+        self.bits_time = bits_time
+
         # in
-        self.input = Signal(34)
+        self.input = Signal(32 + 2)
         self.polarity = Signal()
         self.busy = Signal()
         self.strobe = Signal()
         # out
-        self.output = Signal(32)
+        self.output = Signal(16 + self.bits_time)
         self.rdy = Signal()
         self.rdy_pulse = Signal()
         self.counter_rise = Signal(16)
@@ -40,7 +42,7 @@ class TdcToHitSimple(Elaboratable):
         prev = Signal(32)
         start = Signal(32)
         end = Signal(32)
-        time = Signal(16)
+        time = Signal(self.bits_time)
         diff = Signal(32 + 2) # nanoseconds
         diff2 = Signal(16)
         new_signal = Signal()
@@ -78,14 +80,14 @@ class TdcToHitSimple(Elaboratable):
                     with m.If(self.is_rising()):
                         m.d.sync += [
                             start.eq(self.input[0:32]),
-                            time.eq(self.input[0:16])
+                            time.eq(self.input[0:self.bits_time])
                         ]
                         m.next = "WAIT_END"
                 with m.Elif(self.polarity == FALLING_IS_START):
                     with m.If(self.is_falling()):
                         m.d.sync += [
                             start.eq(self.input[0:32]),
-                            time.eq(self.input[0:16])
+                            time.eq(self.input[0:self.bits_time])
                         ]
                         m.next = "WAIT_END"
 
@@ -135,7 +137,7 @@ class TdcToHitSimple(Elaboratable):
         return m
 
 if __name__ == "__main__":
-    dut = TdcToHitSimple()
+    dut = TdcToHitSimple(bits_time=32)
 
     m = Module()
     m.submodules.dut_tdc = dut
@@ -143,19 +145,21 @@ if __name__ == "__main__":
     sim = Simulator(m)
 
     def test_tdc2hit():
+        time = 0x23232323
         yield dut.polarity.eq(RISING_IS_START)
-        yield dut.input.eq((1 << 32) | 15) # rising, sample = 1
+        yield dut.input.eq((1 << 32) | time) # rising, sample = 1
         assert((yield dut.counter_rise) == 0)
         assert((yield dut.counter_fall) == 0)
         yield
         assert dut.output.eq(0)
-        yield dut.input.eq((1 << 33) | 16) # falling, sample = 1
+        yield dut.input.eq((1 << 33) | time + 1) # falling, sample = 1
         yield
         assert((yield dut.counter_rise) == 1)
         assert((yield dut.counter_fall) == 0)
         yield
         yield
-        assert((yield dut.output) == (0b1111 << 16) | 1)
+        print("output = {}".format(hex((yield dut.output))))
+        assert((yield dut.output) == (time << 16) | 1)
         assert((yield dut.counter_rise) == 1)
         assert((yield dut.counter_fall) == 1)
         assert((yield dut.rdy) == 1)
