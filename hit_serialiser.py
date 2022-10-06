@@ -22,6 +22,9 @@ class HitSerialiser(Elaboratable):
         self.tx_trg = Signal()
         self.idx = Signal(8)
 
+        # statistics
+        self.n_transmitted = Signal(32)
+
         self.ports = [
             self.fifo_rdy,
             self.rdy,
@@ -74,6 +77,7 @@ class HitSerialiser(Elaboratable):
                         m.next = "DONE"
 
             with m.State("DONE"):
+                m.d.sync += self.n_transmitted.eq(self.n_transmitted + 1)
                 m.next = "IDLE"
 
         return m
