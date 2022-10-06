@@ -54,8 +54,8 @@ class TdcChannel(Elaboratable):
             tdc2hit = TdcToHit()
         else:
             fifo_width = 16 + self.bits_time + 2
-            tdc = TdcSimple(self.name, bits_time=self.bits_time)
-            tdc2hit = TdcToHitSimple()
+            tdc = TdcSimple(self.name)
+            tdc2hit = TdcToHitSimple(bits_time=self.bits_time)
 
         fifo = AsyncFIFO(width=fifo_width, depth=16, w_domain="fast",
                          r_domain="sync")
@@ -73,7 +73,7 @@ class TdcChannel(Elaboratable):
             fifo_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
             tdc2hit.input.eq(fifo_data),
             tdc2hit.strobe.eq(self.strobe),
-            self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0xffffffff)),
+            self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0xffffffffffff)),
             self.counter.eq(tdc2hit.counter_rise)
         ]
 

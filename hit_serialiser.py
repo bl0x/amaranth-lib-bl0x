@@ -11,9 +11,11 @@ from amaranth.sim import *
 # byte 5: 0xff
 
 class HitSerialiser(Elaboratable):
-    def __init__(self):
+    def __init__(self, bits=32, n_bytes=6):
+        self.bits = bits
+        self.n_bytes = n_bytes
         self.fifo_rdy = Signal()
-        self.fifo_r_data = Signal(32)
+        self.fifo_r_data = Signal(self.bits)
         self.rdy = Signal()
         self.tx = Signal(unsigned(8))
         self.tx_rdy = Signal()
@@ -31,8 +33,8 @@ class HitSerialiser(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        data = Signal(32)
-        pos = Signal(range(7))
+        data = Signal(self.bits)
+        pos = Signal(range(self.n_bytes + 1))
 
         with m.FSM(reset="IDLE") as fsm:
 
@@ -53,19 +55,19 @@ class HitSerialiser(Elaboratable):
                     m.d.sync += [
                         self.tx.eq(self.idx),
                     ]
-                with m.Elif((pos > 0) & (pos < 5)):
+                with m.Elif((pos > 0) & (pos < (self.n_bytes - 1))):
                     m.d.sync += [
                         self.tx.eq(data),
                         data.eq(data >> 8)
                     ]
-                with m.Elif(pos == 5):
+                with m.Elif(pos == (self.n_bytes - 1)):
                     m.d.sync += [
                         self.tx.eq(0xff)
                     ]
 
             with m.State("WAIT_TX"):
                 with m.If(self.tx_rdy == 1):
-                    with m.If(pos != 5):
+                    with m.If(pos != (self.n_bytes - 1)):
                         m.d.sync += pos.eq(pos + 1)
                         m.next = "ENCODE"
                     with m.Else():
@@ -77,7 +79,7 @@ class HitSerialiser(Elaboratable):
         return m
 
 if __name__ == '__main__':
-    dut = HitSerialiser()
+    dut = HitSerialiser(bits=48, n_bytes=8)
 
     sim = Simulator(dut)
 
@@ -98,7 +100,7 @@ if __name__ == '__main__':
         yield
         yield dut.fifo_rdy.eq(0)
         yield
-        for i in range(6):
+        for i in range(8):
             yield from wait_convert()
             yield from mimic_tx_rdy()
 
@@ -109,7 +111,7 @@ if __name__ == '__main__':
 
     def check_init():
         yield
-        assert(yield dut.rdy == 0)
+        assert(yield dut.rdy == 1)
         for i in range(10):
             yield
 
@@ -122,6 +124,8 @@ if __name__ == '__main__':
         yield from write(0x1337)
         yield from write(0x133713)
         yield from write(0x13371337)
+        yield from write(0xab13371337)
+        yield from write(0xabcd13371337)
         for i in range(200):
             yield
 
