@@ -55,18 +55,6 @@ class Histogram(Elaboratable):
         m.d.comb += w_en.eq(self.write | increment_delayed)
         m.d.comb += r_addr.eq(Mux(self.increment, self.index_w, self.index_r))
         m.d.comb += w_data.eq(Mux(increment_delayed, r_port.data + 1, self.data_w))
-
-        # Old handling without memory
-        ## Writing
-        #with m.If(self.increment == 1):
-        #    m.d.sync += self.mem[self.index_w].eq(self.mem[self.index_w] + 1)
-        #with m.Elif(self.write == 1):
-        #    m.d.sync += self.mem[self.index_w].eq(self.data_w)
-
-        ## Reading
-        #with m.If(self.read == 1):
-        #    m.d.sync += self.data_r.eq(self.mem[self.index_r])
-
         return m
 
 if __name__ == '__main__':

@@ -21,9 +21,11 @@ class HitSerialiser(Elaboratable):
         self.tx_rdy = Signal()
         self.tx_trg = Signal()
         self.idx = Signal(8)
+        self.latch = Signal()
 
         # statistics
         self.n_transmitted = Signal(32)
+        self.n_transmitted_latched = Signal(32)
 
         self.ports = [
             self.fifo_rdy,
@@ -79,6 +81,10 @@ class HitSerialiser(Elaboratable):
             with m.State("DONE"):
                 m.d.sync += self.n_transmitted.eq(self.n_transmitted + 1)
                 m.next = "IDLE"
+
+        # Latch counter
+        with m.If(self.latch == 1):
+            m.d.sync += self.n_transmitted_latched.eq(self.n_transmitted)
 
         return m
 

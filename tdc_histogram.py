@@ -106,13 +106,6 @@ class TdcHistogram(Elaboratable):
             tdc_time.eq(tdc_data[16:31])
         ]
 
-        #m.d.comb += [
-        #    incr_up_det.input.eq(incr_tdc),
-        #    incr_up.eq(incr_up_det.rose),
-        #    incr_down_det.input.eq(incr_tdc_sync),
-        #    incr_down.eq(incr_down_det.fell),
-        #]
-
         with m.If(incr_up == 1):
             m.d[self.tdc_domain] += busy.eq(1)
         with m.If(incr_down == 1):
@@ -123,8 +116,6 @@ class TdcHistogram(Elaboratable):
             tdc.input.eq(self.input),
             tdc.time.eq(self.time),
             tdc.enable.eq(1),
-            #tdc_time.eq(tdc.output[16:32]),
-            #tdc_value.eq(tdc.output[0:16]),
             self.debug_tdc_rdy.eq(tdc.tdc_rdy),
             self.debug_fifo_rdy.eq(tdc.fifo_rdy),
             self.debug_hit_rdy.eq(tdc.hit_rdy)
