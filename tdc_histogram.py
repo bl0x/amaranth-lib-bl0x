@@ -162,12 +162,6 @@ class TdcHistogram(Elaboratable):
             incr_tdc.eq(fifo.r_rdy)
         ]
 
-        #m.d.comb += [
-        #    incr_tdc.eq((tdc_value < 0xffff)),
-        #    increment_sync.i.eq(incr_up),
-        #    incr_tdc_sync.eq(increment_sync.o)
-        #]
-
         # Writing to histogram
         with m.If((incr_tdc | we_tdc) & (self.go == 1)):
             m.d.comb += [
