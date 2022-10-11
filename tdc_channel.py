@@ -104,7 +104,8 @@ class TdcChannel(Elaboratable):
                 m.d.sync += self.strobe2.eq(0)
                 m.next = "RESET"
 
-        with m.If((fifo.r_rdy == 1) & (tdc2hit.busy != 1) & (self.strobe2 == 1)):
+        # with m.If((fifo.r_rdy == 1) & (tdc2hit.busy != 1) & (self.strobe2 == 1)):
+        with m.If((fifo.r_rdy == 1) & (self.strobe2 == 1)):
             m.d.sync += fifo.r_en.eq(~fifo.r_en)
         with m.Else():
             m.d.sync += fifo.r_en.eq(0)

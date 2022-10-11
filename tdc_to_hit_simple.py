@@ -47,6 +47,8 @@ class TdcToHitSimple(Elaboratable):
         diff2 = Signal(16)
         new_signal = Signal()
 
+        end_timeout = Signal(unsigned(self.bits_time))
+
         count_rise = Counter()
         count_fall = Counter()
 
@@ -58,6 +60,9 @@ class TdcToHitSimple(Elaboratable):
             self.counter_rise.eq(count_rise.count),
             self.counter_fall.eq(count_fall.count),
         ]
+
+        with m.If(end_timeout > 0):
+            m.d.sync += end_timeout.eq(end_timeout - 1)
 
         m.d.sync += prev.eq(self.input)
         with m.If(prev != self.input):
@@ -80,24 +85,26 @@ class TdcToHitSimple(Elaboratable):
                     with m.If(self.is_rising()):
                         m.d.sync += [
                             start.eq(self.input[0:32]),
-                            time.eq(self.input[0:self.bits_time])
+                            time.eq(self.input[0:self.bits_time]),
+                            end_timeout.eq(-1)
                         ]
                         m.next = "WAIT_END"
                 with m.Elif(self.polarity == FALLING_IS_START):
                     with m.If(self.is_falling()):
                         m.d.sync += [
                             start.eq(self.input[0:32]),
-                            time.eq(self.input[0:self.bits_time])
+                            time.eq(self.input[0:self.bits_time]),
+                            end_timeout.eq(-1)
                         ]
                         m.next = "WAIT_END"
 
             with m.State("WAIT_END"):
+                m.d.sync += self.busy.eq(1)
                 with m.If(self.polarity == RISING_IS_START):
                     with m.If(self.is_falling()):
                         m.d.sync += [
                             end.eq(self.input[0:32]),
                             diff.eq(self.input[0:32] - start),
-                            self.busy.eq(1)
                         ]
                         m.next = "READY_PULSE"
                 with m.Elif(self.polarity == FALLING_IS_START):
@@ -105,9 +112,10 @@ class TdcToHitSimple(Elaboratable):
                         m.d.sync += [
                             end.eq(self.input[0:32]),
                             diff.eq(self.input[0:32] - start),
-                            self.busy.eq(1)
                         ]
                         m.next = "READY_PULSE"
+                with m.If(end_timeout == 0):
+                    m.next = "TIMEOUT"
 
             with m.State("READY_PULSE"):
                 m.d.sync += [
@@ -115,6 +123,10 @@ class TdcToHitSimple(Elaboratable):
                     self.rdy.eq(1),
                     self.rdy_pulse.eq(1)
                 ]
+                m.next = "RESET"
+
+            with m.State("TIMEOUT"):
+                m.d.sync += self.busy.eq(0)
                 m.next = "RESET"
 
             with m.State("WAIT_STROBE"):
