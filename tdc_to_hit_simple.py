@@ -47,7 +47,7 @@ class TdcToHitSimple(Elaboratable):
         diff2 = Signal(16)
         new_signal = Signal()
 
-        end_timeout = Signal(unsigned(self.bits_time))
+        end_timeout = Signal(unsigned(16))
 
         count_rise = Counter()
         count_fall = Counter()
@@ -119,6 +119,7 @@ class TdcToHitSimple(Elaboratable):
 
             with m.State("READY_PULSE"):
                 m.d.sync += [
+                    end_timeout.eq(0),
                     self.busy.eq(0),
                     self.rdy.eq(1),
                     self.rdy_pulse.eq(1)
