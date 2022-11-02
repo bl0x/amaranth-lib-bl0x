@@ -31,9 +31,12 @@ class TdcChannel(Elaboratable):
         self.time = Signal(bits_time)
         self.strobe = Signal()
         self.name = name
+        self.abort = Signal()
         # out
         self.output = Signal(48)
         self.counter = Signal(16)
+        self.counter_abort = Signal(16)
+        self.counter_timeout = Signal(16)
 
         self.mode = mode
         self.idx = Signal(8, reset=idx)
@@ -73,8 +76,11 @@ class TdcChannel(Elaboratable):
             fifo_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
             tdc2hit.input.eq(fifo_data),
             tdc2hit.strobe.eq(self.strobe),
+            tdc2hit.abort.eq(self.abort),
             self.output.eq(Mux(tdc2hit.rdy, tdc2hit.output, 0xffffffffffff)),
-            self.counter.eq(tdc2hit.counter_rise)
+            self.counter.eq(tdc2hit.counter_rise),
+            self.counter_abort.eq(tdc2hit.counter_abort),
+            self.counter_timeout.eq(tdc2hit.counter_timeout)
         ]
 
         m.d.comb += [

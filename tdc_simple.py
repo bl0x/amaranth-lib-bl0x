@@ -31,7 +31,6 @@ class TdcSimple(Elaboratable):
 
         m = Module()
 
-        
         with m.If(self.enable == 1):
             m.d[self._domain] += [
                 self.sample.eq(self.input),

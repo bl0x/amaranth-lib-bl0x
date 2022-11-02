@@ -24,12 +24,15 @@ class TdcToHitSimple(Elaboratable):
         self.polarity = Signal()
         self.busy = Signal()
         self.strobe = Signal()
+        self.abort = Signal()
         # out
         self.output = Signal(16 + self.bits_time)
         self.rdy = Signal()
         self.rdy_pulse = Signal()
         self.counter_rise = Signal(16)
         self.counter_fall = Signal(16)
+        self.counter_timeout = Signal(16)
+        self.counter_abort = Signal(16)
 
     def is_rising(self):
         return self.input[32] == 1
@@ -51,6 +54,8 @@ class TdcToHitSimple(Elaboratable):
 
         count_rise = Counter()
         count_fall = Counter()
+        count_timeout = Counter()
+        count_abort = Counter()
 
         m = Module()
 
@@ -59,6 +64,8 @@ class TdcToHitSimple(Elaboratable):
             count_fall.input.eq(self.input[33]),
             self.counter_rise.eq(count_rise.count),
             self.counter_fall.eq(count_fall.count),
+            self.counter_timeout.eq(count_timeout.count),
+            self.counter_abort.eq(count_abort.count),
         ]
 
         with m.If(end_timeout > 0):
@@ -71,6 +78,10 @@ class TdcToHitSimple(Elaboratable):
             m.d.sync += new_signal.eq(0)
 
         with m.FSM(reset="RESET") as start_stop:
+
+            m.d.comb += count_timeout.input.eq(start_stop.ongoing("TIMEOUT"))
+            m.d.comb += count_abort.input.eq(start_stop.ongoing("ABORT"))
+
             with m.State("RESET"):
                 m.d.sync += [
                     new_signal.eq(0),
@@ -116,6 +127,8 @@ class TdcToHitSimple(Elaboratable):
                         m.next = "READY_PULSE"
                 with m.If(end_timeout == 0):
                     m.next = "TIMEOUT"
+                with m.Elif(self.abort == 1):
+                    m.next = "ABORT"
 
             with m.State("READY_PULSE"):
                 m.d.sync += [
@@ -127,6 +140,10 @@ class TdcToHitSimple(Elaboratable):
                 m.next = "RESET"
 
             with m.State("TIMEOUT"):
+                m.d.sync += self.busy.eq(0)
+                m.next = "RESET"
+
+            with m.State("ABORT"):
                 m.d.sync += self.busy.eq(0)
                 m.next = "RESET"
 
@@ -146,6 +163,8 @@ class TdcToHitSimple(Elaboratable):
 
         m.submodules.count_rise = count_rise
         m.submodules.count_fall = count_fall
+        m.submodules.count_abort = count_abort
+        m.submodules.count_timeout = count_timeout
 
         return m
 
