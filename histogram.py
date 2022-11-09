@@ -1,12 +1,14 @@
 from amaranth import *
 from amaranth.sim import *
 
+# This is a wrapper around a memory block
+# with helper signals to allow incrementing individual memory values
+
 class Histogram(Elaboratable):
 
     def __init__(self, bins=100, bits=8):
         self.bins = bins
         self.bits = bits
-        self.mem = Array([Signal(unsigned(self.bits)) for _ in range(bins)])
         self.index_r = Signal(range(1, self.bins))
         self.index_w = Signal(range(1, self.bins))
         self.data_r = Signal(unsigned(self.bits))

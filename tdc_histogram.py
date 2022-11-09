@@ -172,7 +172,7 @@ class TdcHistogram(Elaboratable):
         with m.Elif((self.go == 0) & (self.clear == 1)):
             m.d.comb += [
                 self.index_w.eq(addr_tdc),
-                self.write.eq(we_tdc),
+                self.write.eq(1),
                 self.data_w.eq(0)
             ]
 
