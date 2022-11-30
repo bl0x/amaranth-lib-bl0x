@@ -156,7 +156,7 @@ if __name__ == "__main__":
 
     sim = Simulator(m)
 
-    stop = 130
+    stop = 600
 
     def time():
         for i in range(stop):
@@ -187,6 +187,9 @@ if __name__ == "__main__":
         yield from pulse(17)
         yield from pause(80)
         yield from pulse(37)
+        yield from pause(80)
+        yield from pulse(400)
+        yield from pause(80)
 
     def do_strobe():
         yield strobe.eq(1)
