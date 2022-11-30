@@ -60,7 +60,7 @@ class Histogram(Elaboratable):
         return m
 
 if __name__ == '__main__':
-    dut = Histogram(bins=8, bits=8)
+    dut = Histogram(bins=1024, bits=8)
 
     sim = Simulator(dut)
 
@@ -121,6 +121,12 @@ if __name__ == '__main__':
         yield from read(1)
 
         print("dut.data = {}".format((yield dut.data_r)))
+        assert (yield dut.data_r) == 1, "Didn't get 1!"
+
+        yield from increment(1000)
+        yield from read(1000)
+
+        print("dut.data_r = {}".format((yield dut.data_r)))
         assert (yield dut.data_r) == 1, "Didn't get 1!"
 
 
