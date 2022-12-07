@@ -152,9 +152,10 @@ class TdcToHitSimple(Elaboratable):
                 with m.If(self.strobe == 1):
                     m.next = "RESET"
 
+        # Handle overflow
         m.d.comb += [
             diff2.eq(
-                Mux(diff < 0x3fff, diff, 0xffff)
+                Mux(diff < 0xffff, diff, 0xffff)
             )
         ]
         m.d.sync += [
