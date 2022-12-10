@@ -61,6 +61,10 @@ class RegisterTable():
         self.dict = {}
         self.description = {}
 
+    def add_range(self, name, offset, length, description=None, bits=None):
+        self.dict[name] = register_range(name, offset, length, bits)
+        self.description[name] = description
+
     def add_list(self, name, offset, description=None, names=None):
         if name in self.dict:
             if type(self.dict[name]) is not list:
@@ -167,4 +171,15 @@ def register_list(listname, offset, names):
         signame = listname + "_" + name
         regs[name] = RegConf(offset + i, bits, name, signame, reset,
                              description)
+    return regs
+
+def register_range(name, offset, length, bits):
+    regs = {}
+    signame = name
+    reset = 0
+    description = None
+    regs["start"] = RegConf(offset, bits, "start", signame+"_start", reset,
+                         description)
+    regs["end"] = RegConf(offset+length, bits, "end", signame+"_end", reset,
+                         description)
     return regs

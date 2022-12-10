@@ -39,6 +39,7 @@ class HitSerialiser(Elaboratable):
         m = Module()
 
         data = Signal(self.bits)
+        idx = Signal(8)
         pos = Signal(range(self.n_bytes + 1))
 
         with m.FSM(reset="IDLE") as fsm:
@@ -50,7 +51,8 @@ class HitSerialiser(Elaboratable):
                 m.d.sync += pos.eq(0)
                 with m.If(self.fifo_rdy == 1):
                     m.d.sync += [
-                        data.eq(self.fifo_r_data)
+                        data.eq(self.fifo_r_data),
+                        idx.eq(self.idx)
                     ]
                     m.next = "ENCODE"
 
@@ -58,7 +60,7 @@ class HitSerialiser(Elaboratable):
                 m.next = "WAIT_TX"
                 with m.If(pos == 0):
                     m.d.sync += [
-                        self.tx.eq(self.idx),
+                        self.tx.eq(idx),
                     ]
                 with m.Elif((pos > 0) & (pos < (self.n_bytes - 1))):
                     m.d.sync += [
