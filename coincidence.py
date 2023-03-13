@@ -16,6 +16,8 @@ class Coincidence(Elaboratable):
         self.t1 = Signal(bits_time + 1) # signed (MSB always 0)
         self.d0 = Signal(bits_data)
         self.d1 = Signal(bits_data)
+        self.valid_t0 = Signal()      # Pulse here to update internal data
+        self.valid_t1 = Signal()      # Pulse here to update internal data
 
         # Outputs
         self.diff = Signal.like(self.t0) # signed
@@ -32,9 +34,12 @@ class Coincidence(Elaboratable):
         m = Module()
 
         t0_greater = Signal()
-        t0 = self.t0
-        t1 = self.t1
         diff = self.diff
+
+        t0 = Signal.like(self.t0)
+        t1 = Signal.like(self.t1)
+        d0 = Signal.like(self.t0)
+        d1 = Signal.like(self.d1)
 
         t0_prev = Signal.like(t0)
         t1_prev = Signal.like(t1)
@@ -44,6 +49,18 @@ class Coincidence(Elaboratable):
         new_value = Signal()
 
         # Save the previous value
+        with m.If(self.valid_t0):
+            m.d.sync += [
+                t0.eq(self.t0),
+                d0.eq(self.d0)
+            ]
+
+        with m.If(self.valid_t1):
+            m.d.sync += [
+                t1.eq(self.t1),
+                d1.eq(self.d1)
+            ]
+
         m.d.sync += [
             t0_prev.eq(t0),
             t1_prev.eq(t1)
