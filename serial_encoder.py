@@ -90,7 +90,7 @@ class SerialEncoder(Elaboratable):
                 with m.If(bcd_pos < 11):
                     digit = bcd.bcd.word_select(10 - bcd_pos, 4)
                     m.d.sync += bcd_pos.eq(bcd_pos + 1)
-                    with m.If((bcd_pos == bcd.digits) |
+                    with m.If((bcd_pos == (bcd.digits - 1)) |
                         (digit != 0) | (seen_nonzero == 1)):
                         m.d.sync += [
                             seen_nonzero.eq(1),
@@ -219,8 +219,9 @@ if __name__ == '__main__':
         yield from write(0xfe)
         yield from write(0x1337)
         yield from write(0x133713)
+        yield from write(0x0)
         yield from write(0x13371337)
-        yield from transmit(40)
+        yield from transmit(50)
         for i in range(200):
             yield
 
