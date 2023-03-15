@@ -25,6 +25,8 @@ class Coincidence(Elaboratable):
         self.out = Signal()              # 1 whenever coincidence is true
         self.out_pulse = Signal()        # 1 whenever a new value leads to
                                          # a true coincidence
+        self.out_d0 = Signal(bits_data)
+        self.out_d1 = Signal(bits_data)
 
         # Variables
         self.window_min = Signal(8)
@@ -52,13 +54,13 @@ class Coincidence(Elaboratable):
         with m.If(self.valid_t0):
             m.d.sync += [
                 t0.eq(self.t0),
-                d0.eq(self.d0)
+                self.out_d0.eq(self.d0)
             ]
 
         with m.If(self.valid_t1):
             m.d.sync += [
                 t1.eq(self.t1),
-                d1.eq(self.d1)
+                self.out_d1.eq(self.d1)
             ]
 
         m.d.sync += [
