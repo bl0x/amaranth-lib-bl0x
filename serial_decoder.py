@@ -100,11 +100,14 @@ class SerialDecoder(Elaboratable):
                 m.next = "WAIT_COMMAND"
             with m.State("WAIT_COMMAND"):
                 with m.If(self.write_rose == 1):
-                    m.d.sync += [
-                        self.buffer[self.pos].eq(self.char),
-                        self.pos.eq(self.pos + 1),
-                        self.ready.eq(0),
-                    ]
+                    with m.If((self.char == ord(self.separator))
+                      | (self.char == 0x0d)
+                      | ((self.char >= ord('A')) & (self.char <= ord('Z')))):
+                        m.d.sync += [
+                            self.buffer[self.pos].eq(self.char),
+                            self.pos.eq(self.pos + 1),
+                            self.ready.eq(0),
+                        ]
                 with m.If(self.char == ord(self.separator)):
                     m.d.sync += [
                         self.command_complete.eq(1),
@@ -118,11 +121,14 @@ class SerialDecoder(Elaboratable):
                     m.next = "WAIT_ARGN"
             with m.State("WAIT_ARGN"):
                 with m.If(self.write_rose == 1):
-                    m.d.sync += [
-                        self.buffer[self.pos].eq(self.char),
-                        self.pos.eq(self.pos + 1),
-                        self.command_complete.eq(0)
-                    ]
+                    with m.If((self.char == ord(self.separator))
+                      | (self.char == 0x0d) | (self.char == 0x0a)
+                      | ((self.char >= ord('0')) & (self.char <= ord('9')))):
+                        m.d.sync += [
+                            self.buffer[self.pos].eq(self.char),
+                            self.pos.eq(self.pos + 1),
+                            self.command_complete.eq(0)
+                        ]
                 with m.If(self.pos > 1):
                     with m.If((self.buffer[self.pos - 1] == 0x20)
                                 & (self.arg_off[0] > 0)
@@ -288,6 +294,12 @@ if __name__ == '__main__':
     def proc():
         for speed_divider in [1, 2, 20]:
             print("Speed divider = {}".format(speed_divider))
+            yield from write("ABC R 5\r\n")
+            assert (yield dut.command) == 0, "Got {}".format((yield dut.command))
+            yield from write("Z 5\r\n")
+            assert (yield dut.command) == 0, "Got {}".format((yield dut.command))
+            yield from write("\r\n5 R 5\r\n")
+            assert (yield dut.command) == 0, "Got {}".format((yield dut.command))
             for cmd in dut.commands:
                 print("cmd = {}".format(cmd))
                 yield from test_command(dut.commands[cmd], None,  None,
