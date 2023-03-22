@@ -29,8 +29,8 @@ class Coincidence(Elaboratable):
         self.out_d1 = Signal(bits_data)
 
         # Variables
-        self.window_min = Signal(8)
-        self.window_max = Signal(8)
+        self.window_min = Signal(9)
+        self.window_max = Signal(9)
 
     def elaborate(self, platform):
         m = Module()
@@ -98,8 +98,18 @@ if __name__ == "__main__":
     sim = Simulator(dut)
 
     def proc():
+        yield dut.window_min.eq(-255)
+        yield dut.window_max.eq(255)
+        yield
+        yield dut.window_min.eq(-128)
+        yield dut.window_max.eq(128)
+        yield
+        yield dut.window_min.eq(-127)
+        yield dut.window_max.eq(127)
+        yield
         yield dut.window_min.eq(-20)
         yield dut.window_max.eq(50)
+        yield
         yield dut.t0.eq(1000)
         yield dut.t1.eq(800)
         yield
