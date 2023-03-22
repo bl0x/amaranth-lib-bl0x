@@ -112,6 +112,8 @@ if __name__ == "__main__":
         yield
         yield dut.t0.eq(1000)
         yield dut.t1.eq(800)
+        yield dut.valid_t0.eq(1)
+        yield dut.valid_t1.eq(1)
         yield
         yield
         yield
