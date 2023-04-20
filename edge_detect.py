@@ -26,6 +26,12 @@ class EdgeDetector(Elaboratable):
 
         return m
 
+    def connect(self, i, o, fell=None):
+        if fell is None:
+            return [self.input.eq(i), o.eq(self.rose)]
+        else:
+            return [self.input.eq(i), o.eq(self.rose), fell.eq(self.fell)]
+
 if __name__ == '__main__':
     dut = EdgeDetector()
     sim = Simulator(dut)
