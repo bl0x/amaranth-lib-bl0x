@@ -111,6 +111,8 @@ if __name__ == "__main__":
         yield dut.window_max.eq(50)
         yield
         yield dut.t0.eq(1000)
+        yield dut.d0.eq(33)
+        yield dut.d1.eq(44)
         yield dut.t1.eq(800)
         yield dut.valid_t0.eq(1)
         yield dut.valid_t1.eq(1)
