@@ -23,37 +23,37 @@ from amaranth.sim import *
 
 class SerialDecoder(Elaboratable):
 
-    def __init__(self, bufsize=16, arg_bits=32):
+    def __init__(self, bufsize=16, arg_bits=32, n_args=2):
         self.bufsize = bufsize
         self.arg_bits = arg_bits
+        self.n_args = n_args
         self.buffer = Array([Signal(unsigned(8)) for _ in range(self.bufsize)])
         self.pos = Signal(unsigned(8))
         self.command = Signal(unsigned(4))
         self.command_complete = Signal()
-        self.arg =     Array([Signal(unsigned(arg_bits)) for _ in range(2)])
-        self.arg_off = Array([Signal(unsigned(8)) for _ in range(2)])
-        self.arg_len = Array([Signal(unsigned(8)) for _ in range(2)])
+        self.arg =  Array([Signal(unsigned(arg_bits)) for _ in range(n_args)])
+        self.arg_off = Array([Signal(unsigned(4)) for _ in range(n_args)])
+        self.arg_len = Array([Signal(unsigned(4)) for _ in range(n_args)])
         self.arg_convert_busy = Signal()
         self.char = Signal(8)
         self.write = Signal()
         self.clear = Signal()
         self.seen_crlf = Signal()
         self.decoded_command = Signal(unsigned(4))
-        self.decoded_arg = Array([Signal(unsigned(arg_bits)) for _ in range(2)])
+        self.decoded_arg = Array([
+            Signal(unsigned(arg_bits)) for _ in range(n_args)])
         self.ready = Signal()
         self.write_prev = Signal()
         self.write_rose = Signal()
+        self.arg_n = Signal()
 
         for i in range(self.bufsize):
             self.buffer[i].name = "buffer" + str(i)
-        self.arg[0].name = "arg0"
-        self.arg[1].name = "arg1"
-        self.decoded_arg[0].name = "dec_arg0"
-        self.decoded_arg[1].name = "dec_arg1"
-        self.arg_off[0].name = "arg0_off"
-        self.arg_off[1].name = "arg1_off"
-        self.arg_len[0].name = "arg0_len"
-        self.arg_len[1].name = "arg1_len"
+        for i in range(self.n_args):
+            self.arg[i].name = "arg{}".format(i)
+            self.decoded_arg[i].name = "dec_arg{}".format(i)
+            self.arg_off[i].name = "arg{}_off".format(i)
+            self.arg_len[i].name = "arg{}_len".format(i)
 
         self.commands = {
             "READ": {"char": 'R', "value": 1},
@@ -80,7 +80,7 @@ class SerialDecoder(Elaboratable):
         m.d.comb += self.write_rose.eq((self.write == 1)
                                        & (self.write_prev == 0))
 
-        arg_n = Signal()
+        arg_n = self.arg_n
 
         with m.FSM(reset="WAIT_COMMAND") as fsm_decode:
             with m.State("RESET"):
