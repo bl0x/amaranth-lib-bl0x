@@ -40,6 +40,29 @@ class Counter(Elaboratable):
         m.submodules.ed = ed
         return m
 
+class CounterSync(Elaboratable):
+    def __init__(self, name, bits):
+        self.bits = bits
+
+        self.counter = Counter(bits=self.bits)
+        self.counter_s = Signal.like(self.counter.count)
+        self.counter_ffs = FFSynchronizer(self.counter.count, self.counter_s,
+                                          o_domain="sync")
+
+    def connect(self, _input, latch, output, latched_output):
+        return [
+            self.counter.input.eq(_input),
+            counter.latch.eq(latch),
+            output.eq(counter_s),
+            latched_output.eq(counter.count_latched),
+        ]
+
+    def elaborate(self, platform):
+        m = Module()
+        m.submodules["counter_"+name] = self.counter
+        m.submodules["counter_ffs_"+name] = self.counter_ffs
+        return m
+
 if __name__ == '__main__':
     dut = Counter()
     sim = Simulator(dut)
