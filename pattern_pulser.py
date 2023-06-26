@@ -22,14 +22,15 @@ class PatternPulser(Elaboratable):
             with m.If(len_ctr + increment > 0xff):
                 with m.If(increment == 0x80):
                     m.d.sync += increment.eq(1)
+                    m.d.sync += self.step.eq(1)
                 with m.Else():
                     m.d.sync += increment.eq(increment * 2)
+                    m.d.sync += self.step.eq(self.step + 1)
 
 
         m.d.sync += cycle_ctr.eq(cycle_ctr + 1)
 
         m.d.comb += [
-            self.step.eq(increment),
             self.out.eq(cycle_ctr <= len_ctr)
         ]
 
