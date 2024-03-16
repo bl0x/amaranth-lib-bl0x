@@ -13,8 +13,7 @@ class SpiDevice(wiring.Component):
     sdi: In(1)
     sdo: Out(1)
 
-    instr: Out(8)
-    data: Out(24)
+    r_data: Out(32)
     busy: Out(1)
     ready: Out(1)
     w_en: In(1)
@@ -24,7 +23,7 @@ class SpiDevice(wiring.Component):
         super().__init__()
 
     def elaborate(self, platform):
-        cs_n = self.cs_n
+        cs_n_int = Signal()
         sdi = self.sdi
         sclk = self.sclk
         cnt_clk = Signal(6)
@@ -37,20 +36,21 @@ class SpiDevice(wiring.Component):
 
         m.d.comb += ed_sclk.input.eq(sclk)
 
+        m.d.comb += cs_n_int.eq(self.cs_n | self.busy)
+
         with m.FSM() as fsm:
             with m.State("IDLE"):
-                with m.If(cs_n == 0):
-                    m.d.sync += self.instr.eq(0)
-                    m.d.sync += self.data.eq(0)
+                m.d.sync += self.busy.eq(0)
+                with m.If(cs_n_int == 0):
+                    m.d.sync += self.ready.eq(0)
+                    m.d.sync += self.r_data.eq(0)
                     m.d.sync += cnt_clk.eq(0)
-                    m.d.sync += self.busy.eq(0)
                     with m.If(self.w_en == 0):
                         m.next = "READ"
                     with m.Else():
                         m.next = "WRITE"
             with m.State("READ"):
-                m.d.sync += self.ready.eq(0)
-                with m.If(cs_n == 0):
+                with m.If(cs_n_int == 0):
                     m.d.comb += self.sdo.eq(bits[0])
                     with m.If(ed_sclk.rose == 1):
                         m.d.sync += bits.eq(Cat((bits[1:n_bits]), sdi))
@@ -59,7 +59,7 @@ class SpiDevice(wiring.Component):
                     m.d.sync += self.busy.eq(1)
                     m.next = "EXECUTE"
             with m.State("WRITE"):
-                with m.If(cs_n == 0):
+                with m.If(cs_n_int == 0):
                     m.d.comb += self.sdo.eq(bits[0])
                     with m.If(self.w_en == 1):
                         m.d.sync += bits.eq(self.w_data)
@@ -69,8 +69,7 @@ class SpiDevice(wiring.Component):
                 with m.Else():
                     m.next = "IDLE"
             with m.State("EXECUTE"):
-                m.d.sync += self.instr.eq(bits[0:8])
-                m.d.sync += self.data.eq(bits[8:32])
+                m.d.sync += self.r_data.eq(bits)
                 m.d.sync += self.ready.eq(1)
                 m.next = "IDLE"
 
