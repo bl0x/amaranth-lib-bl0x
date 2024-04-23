@@ -11,15 +11,15 @@ class PatternPulser(Elaboratable):
 
     def elaborate(self, platform):
 
-        len_ctr = Signal(8, reset=1)
+        len_ctr = Signal(12, reset=1)
         increment = Signal(8, reset=1)
-        cycle_ctr = Signal(8)
+        cycle_ctr = Signal(12)
 
         m = Module()
 
-        with m.If(cycle_ctr == 0xff):
+        with m.If(cycle_ctr == 0xfff):
             m.d.sync += len_ctr.eq(len_ctr + increment)
-            with m.If(len_ctr + increment > 0xff):
+            with m.If(len_ctr + increment > 0xfff):
                 with m.If(increment == 0x80):
                     m.d.sync += increment.eq(1)
                     m.d.sync += self.step.eq(1)
