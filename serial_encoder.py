@@ -88,7 +88,7 @@ class SerialEncoder(Elaboratable):
 
             with m.State("SEND_BCD"):
                 with m.If(bcd_pos < 11):
-                    digit = bcd.bcd.word_select(10 - bcd_pos, 4)
+                    digit = bcd.bcd.word_select((10 - bcd_pos).as_unsigned(), 4)
                     m.d.sync += bcd_pos.eq(bcd_pos + 1)
                     with m.If((bcd_pos == (bcd.digits - 1)) |
                         (digit != 0) | (seen_nonzero == 1)):
