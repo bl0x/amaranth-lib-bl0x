@@ -25,13 +25,13 @@ class Counter(Elaboratable):
         ed = EdgeDetector()
 
         m = Module()
-        m.d.comb += ed.input.eq(self.input)
+        m.d.comb += ed.io.i.eq(self.input)
 
         if self.rising == True:
-            with m.If(ed.rose == 1):
+            with m.If(ed.io.rose == 1):
                 m.d.sync += self.count.eq(self.count + 1)
         if self.falling == True:
-            with m.If(ed.fell == 1):
+            with m.If(ed.io.fell == 1):
                 m.d.sync += self.count.eq(self.count + 1)
 
         with m.If(self.latch == 1):
