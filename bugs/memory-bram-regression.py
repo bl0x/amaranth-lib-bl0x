@@ -1,6 +1,6 @@
 from amaranth import Module, Signal, Elaboratable, Const
 from amaranth.hdl.mem import Memory
-from amaranth_boards.cmod_s7 import CmodS7_Platform
+from amaranth_boards.arty_a7 import ArtyA7_35Platform
 from amaranth.back import verilog
 
 # This tests whether or not memory is instantiated as block RAM or
@@ -46,5 +46,5 @@ class MemoryBramRegression(Elaboratable):
 
 if __name__ == "__main__":
     top = MemoryBramRegression()
-    platform = CmodS7_Platform(toolchain="Vivado")
+    platform = ArtyA7_35Platform(toolchain="Vivado")
     platform.build(top)

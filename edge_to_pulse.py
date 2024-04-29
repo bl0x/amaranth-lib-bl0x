@@ -3,35 +3,35 @@ from amaranth.lib import wiring
 from amaranth.lib.wiring import In, Out
 from amaranth.sim import *
 
-from edge_detect import EdgeDetector
+from edge_detect import EdgeDetector, EdgeDetectorSignature
 
 class EdgeToPulse(wiring.Component):
 
     o: Out(1)
     i: In(1)
-
+    
     def __init__(self, bits=16):
         self.width = Signal(bits)
         self.bits = bits
+        self.ed = EdgeDetector()
+        self.io = EdgeDetectorSignature().flip().create()
         super().__init__()
 
     def elaborate(self, platform):
-        ed = EdgeDetector()
         counter = Signal(self.bits)
 
         m = Module()
+        ed = m.submodules.edge_detector = self.ed
 
-        m.d.comb += ed.input.eq(self.i)
+        wiring.connect(m, self.io, ed.io)
 
-        with m.If(ed.rose == 1):
+        m.d.comb += self.io.i.eq(self.i)
+        m.d.comb += self.o.eq((self.io.rose == 1) | (counter > 0))
+
+        with m.If(self.io.rose == 1):
             m.d.sync += counter.eq(self.width - 1)
-
-        m.d.comb += self.o.eq((ed.rose == 1) | (counter > 0))
-
         with m.If(counter > 0):
             m.d.sync += counter.eq(counter - 1),
-
-        m.submodules.edge_detector = ed
 
         return m
 
@@ -53,6 +53,7 @@ if __name__=="__main__":
         yield
         assert((yield dut.o) == 1)
         yield dut.i.eq(0)
+        yield
         yield
         yield
         assert((yield dut.o) == 0)
