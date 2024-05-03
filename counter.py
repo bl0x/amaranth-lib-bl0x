@@ -1,43 +1,39 @@
 from amaranth import *
 from amaranth.sim import *
+from amaranth.lib import wiring
+from amaranth.lib.wiring import In, Out
 
 from edge_detect import EdgeDetector
 
-class Counter(Elaboratable):
+class Counter(wiring.Component):
+    input: In(1)
+    latch: In(1)
+
     def __init__(self, bits=16, rising=True, falling=False):
         self.rising = rising
         self.falling = falling
         self.bits = bits
-        self.input = Signal()
+
         self.count = Signal(unsigned(bits))
         self.count_latched = Signal(unsigned(bits))
-        self.latch = Signal()
-
-        self.ports = [
-            self.input,
-            self.count,
-            self.count_latched,
-            self.latch
-        ]
+        super().__init__()
 
     def elaborate(self, platform):
-
-        ed = EdgeDetector()
-
         m = Module()
-        m.d.comb += ed.io.i.eq(self.input)
+        m.submodules.ed = ed = EdgeDetector()
+
+        m.d.comb += ed.i.eq(self.input)
 
         if self.rising == True:
-            with m.If(ed.io.rose == 1):
+            with m.If(ed.rose == 1):
                 m.d.sync += self.count.eq(self.count + 1)
         if self.falling == True:
-            with m.If(ed.io.fell == 1):
+            with m.If(ed.fell == 1):
                 m.d.sync += self.count.eq(self.count + 1)
 
         with m.If(self.latch == 1):
             m.d.sync += self.count_latched.eq(self.count)
 
-        m.submodules.ed = ed
         return m
 
 class CounterSync(Elaboratable):
