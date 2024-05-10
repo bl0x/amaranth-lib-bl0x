@@ -10,7 +10,7 @@ class Pulser(Elaboratable):
         self.period = Signal(range(1, 10000000), reset=period)
         self.length = Signal(range(1, 10000000), reset=length)
         self.length2 = Signal(range(1, 10000000), reset=length)
-        self.distance = Signal(range(1, 100000), reset=0)
+        self.distance = Signal(range(1, 100000), reset=1)
         self.enable = Signal()
         self.mode = Signal()
         self.out = Signal()
