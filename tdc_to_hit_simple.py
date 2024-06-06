@@ -11,13 +11,18 @@ from counter import Counter
 #
 # Unit of length of pulse is governed by the 'resolution' parameter
 
+# Parameters
+# bits_time = How many bits to use for counting time
+# bits_timeout = How many bits to use for timeout counter
+
 RISING_IS_START = 0
 FALLING_IS_START = 1
 
 class TdcToHitSimple(Elaboratable):
 
-    def __init__(self, bits_time=16):
+    def __init__(self, bits_time=16, bits_timeout=16):
         self.bits_time = bits_time
+        self.bits_timeout = bits_timeout
 
         # in
         self.input = Signal(32 + 2)
@@ -50,7 +55,7 @@ class TdcToHitSimple(Elaboratable):
         diff2 = Signal(16)
         new_signal = Signal()
 
-        end_timeout = Signal(unsigned(16))
+        end_timeout = Signal(unsigned(self.bits_timeout))
 
         count_rise = Counter()
         count_fall = Counter()
@@ -80,6 +85,7 @@ class TdcToHitSimple(Elaboratable):
         with m.FSM(reset="RESET") as start_stop:
 
             m.d.comb += count_timeout.input.eq(start_stop.ongoing("TIMEOUT"))
+            m.d.comb += count_timeout.enable.eq(Const(1))
             m.d.comb += count_abort.input.eq(start_stop.ongoing("ABORT"))
 
             with m.State("RESET"):
