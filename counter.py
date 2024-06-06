@@ -8,6 +8,7 @@ from edge_detect import EdgeDetector
 class Counter(wiring.Component):
     input: In(1)
     latch: In(1)
+    enable: In(1)
 
     def __init__(self, bits=16, rising=True, falling=False):
         self.rising = rising
@@ -24,12 +25,13 @@ class Counter(wiring.Component):
 
         m.d.comb += ed.i.eq(self.input)
 
-        if self.rising == True:
-            with m.If(ed.rose == 1):
-                m.d.sync += self.count.eq(self.count + 1)
-        if self.falling == True:
-            with m.If(ed.fell == 1):
-                m.d.sync += self.count.eq(self.count + 1)
+        with m.If(self.enable == 1):
+            if self.rising == True:
+                with m.If(ed.rose == 1):
+                    m.d.sync += self.count.eq(self.count + 1)
+            if self.falling == True:
+                with m.If(ed.fell == 1):
+                    m.d.sync += self.count.eq(self.count + 1)
 
         with m.If(self.latch == 1):
             m.d.sync += self.count_latched.eq(self.count)
@@ -45,9 +47,10 @@ class CounterSync(Elaboratable):
         self.counter_ffs = FFSynchronizer(self.counter.count, self.counter_s,
                                           o_domain="sync")
 
-    def connect(self, _input, latch, output, latched_output):
+    def connect(self, _input, latch, enable, output, latched_output):
         return [
             self.counter.input.eq(_input),
+            self.counter.enable.eq(_enable),
             counter.latch.eq(latch),
             output.eq(counter_s),
             latched_output.eq(counter.count_latched),
@@ -77,6 +80,19 @@ if __name__ == '__main__':
         yield dut.input.eq(1)
         yield
         yield
+        assert((yield dut.count) == 0)
+        yield dut.input.eq(0)
+        yield
+        yield
+        assert((yield dut.count) == 0)
+        yield
+        yield dut.enable.eq(1)
+        yield
+        yield
+        yield
+        yield dut.input.eq(1)
+        yield
+        yield
         assert((yield dut.count) == 1)
         yield dut.input.eq(0)
         yield
@@ -97,7 +113,7 @@ if __name__ == '__main__':
 
     sim.add_clock(1/12e6)
     sim.add_sync_process(proc)
-    with sim.write_vcd('counter.vcd', 'counter.gtkw', traces=dut.ports):
+    with sim.write_vcd('counter.vcd', 'counter.gtkw'):
         sim.run()
 
 
