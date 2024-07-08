@@ -1,7 +1,7 @@
 from amaranth import *
 from amaranth.sim import *
 from amaranth.lib.fifo import AsyncFIFO
-from amaranth.lib.cdc import PulseSynchronizer
+from amaranth.lib.cdc import PulseSynchronizer, FFSynchronizer
 
 from tdc import Tdc
 from tdc_to_hit import TdcToHit
@@ -65,12 +65,17 @@ class TdcChannel(Elaboratable):
 
         m = Module()
 
+        enable_sync = Signal.like(self.enable)
+        enable_ffs = FFSynchronizer(self.enable, enable_sync,
+                                    o_domain="fast")
+        m.submodules.enable_ffs = enable_ffs
+
         fifo_data = Signal(fifo_width)
 
         m.d.comb += [
             tdc.input.eq(self.input),
             tdc.time.eq(self.time),
-            tdc.enable.eq(self.enable),
+            tdc.enable.eq(enable_sync),
             fifo.w_data.eq(tdc.output),
             fifo.w_en.eq(tdc.rdy),
             fifo_data.eq(Mux((fifo.r_level > 0), fifo.r_data, 0)),
