@@ -38,9 +38,10 @@ class Histogram(Elaboratable):
         increment_delayed = Signal()
         increment_addr = Signal(range(1, self.bins))
 
-        storage = Memory(shape=unsigned(self.bits), depth=self.bins, init=[])
+        m.submodules.storage = storage = Memory(
+                shape=unsigned(self.bits), depth=self.bins, init=[])
         w_port = storage.write_port()
-        r_port = storage.read_port(domain="comb")
+        r_port = storage.read_port()
 
         m.d.comb += [
             w_port.addr.eq(w_addr),
