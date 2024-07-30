@@ -1,5 +1,6 @@
 from amaranth import *
 from amaranth.sim import *
+from amaranth.lib.memory import Memory
 
 # This is a wrapper around a memory block
 # with helper signals to allow incrementing individual memory values
@@ -37,9 +38,9 @@ class Histogram(Elaboratable):
         increment_delayed = Signal()
         increment_addr = Signal(range(1, self.bins))
 
-        storage = Memory(width=self.bits, depth=self.bins)
-        w_port = m.submodules.w_port = storage.write_port()
-        r_port = m.submodules.r_port = storage.read_port()
+        storage = Memory(shape=unsigned(self.bits), depth=self.bins, init=[])
+        w_port = storage.write_port()
+        r_port = storage.read_port(domain="comb")
 
         m.d.comb += [
             w_port.addr.eq(w_addr),
