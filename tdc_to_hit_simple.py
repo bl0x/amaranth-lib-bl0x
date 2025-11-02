@@ -115,6 +115,7 @@ class TdcToHitSimple(Elaboratable):
                         ]
                         m.next = "WAIT_END"
 
+            # TODO: Reduce diff to 16 bits + carry (?)
             with m.State("WAIT_END"):
                 m.d.sync += self.busy.eq(1)
                 with m.If(self.polarity == RISING_IS_START):

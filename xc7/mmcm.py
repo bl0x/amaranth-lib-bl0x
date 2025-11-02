@@ -47,7 +47,7 @@ class MMCME2(Elaboratable):
                 o_O=clkbuf_out
                 )
 
-        self.m.domains += ClockDomain(domain_name)
+        # self.m.domains += ClockDomain(domain_name)
         self.m.d.comb += ClockSignal(domain_name).eq(clkbuf_out)
 
         print(f"New clock domain '{domain_name}' with frequency {frequency}")
